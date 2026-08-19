@@ -1,0 +1,16 @@
+# Alogs.space — LynxChan, native JSON API (see docs/alogs.space.md).
+name: alogs
+base_url: https://alogs.space
+platform: lynxchan
+api_available: true
+poll_interval: 60s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: cow
+    title: Lolcows
+    nsfw: false
+  - code: robowaifu
+    title: DIY Robot Wives
+    nsfw: false
+    download_full: true

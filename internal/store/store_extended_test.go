@@ -1,0 +1,373 @@
+package store
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"akyuu/internal/adapter"
+)
+
+func TestArchivePageCursorAndMirrorDedup(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	fourchanID, err := st.UpsertSite(ctx, "4chan", "https://boards.4chan.org", "fourchan", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desuID, err := st.UpsertSite(ctx, "desuarchive", "https://desuarchive.org", "desuarchive", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A fresh auto-discovered board starts at page 1.
+	desuA, err := st.UpsertBoard(ctx, desuID, "a", "Anime & Manga", false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := st.GetBoard(ctx, "desuarchive", "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.ArchivePage != 1 {
+		t.Fatalf("archive_page = %d, want 1", b.ArchivePage)
+	}
+
+	// Advancing the cursor survives a reload.
+	if err := st.SetBoardArchivePage(ctx, desuA, 42); err != nil {
+		t.Fatal(err)
+	}
+	b, err = st.GetBoardByID(ctx, desuA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.ArchivePage != 42 {
+		t.Errorf("archive_page = %d, want 42", b.ArchivePage)
+	}
+
+	// A live-4chan thread for the same post number exists on the 4chan board.
+	liveBoard, err := st.UpsertBoard(ctx, fourchanID, "a", "Anime & Manga", false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	liveThread, created, err := st.UpsertThread(ctx, liveBoard, "290240714", "live op", false, false, false, 1787078099)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !created {
+		t.Fatal("expected live thread created")
+	}
+
+	// The archive mirror resolves to the live thread, so the scheduler skips
+	// re-pulling it. The board's own rows are not matches.
+	mirror, err := st.FindThreadMirror(ctx, desuA, "290240714")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mirror == nil || mirror.ID != liveThread {
+		t.Fatalf("mirror = %+v, want live thread %d", mirror, liveThread)
+	}
+	if _, err := st.FindThreadMirror(ctx, liveBoard, "290240714"); err != nil {
+		t.Fatalf("same-board lookup must not error: %v", err)
+	}
+
+	// A thread that has no mirror anywhere returns nil.
+	noMirror, err := st.FindThreadMirror(ctx, desuA, "555555555")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if noMirror != nil {
+		t.Fatalf("noMirror = %+v, want nil", noMirror)
+	}
+
+	// vichan sites are not part of the fourchan family: a matching native id
+	// there must not be treated as a mirror.
+	vichanID, err := st.UpsertSite(ctx, "lainchan", "https://lainchan.org", "vichan", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vichanBoard, err := st.UpsertBoard(ctx, vichanID, "a", "Anime", false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.UpsertThread(ctx, vichanBoard, "290240714", "unrelated", false, false, false, 0); err != nil {
+		t.Fatal(err)
+	}
+	mirror, err = st.FindThreadMirror(ctx, desuA, "290240714")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mirror == nil || mirror.ID != liveThread {
+		t.Fatalf("mirror = %+v, want live 4chan thread %d", mirror, liveThread)
+	}
+}
+
+func TestThreadLifecycle(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "s", "https://s", "lynxchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "b", "B", false, true)
+	threadID, created, err := st.UpsertThread(ctx, boardID, "100", "t", false, false, false, 0)
+	if err != nil || !created {
+		t.Fatalf("upsert: created=%v err=%v", created, err)
+	}
+
+	if err := st.MarkThreadSeen(ctx, threadID, 5, 3, 0); err != nil {
+		t.Fatal(err)
+	}
+	th, err := st.GetThreadByNative(ctx, boardID, "100")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if th.ReplyCount != 5 || th.FileCount != 3 || th.LastSeenAt == nil {
+		t.Errorf("after first seen: %+v", th)
+	}
+
+	// Stats are greatest-so-far; lower counts do not regress them.
+	if err := st.MarkThreadSeen(ctx, threadID, 2, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+	th, _ = st.GetThreadByID(ctx, threadID)
+	if th.ReplyCount != 5 || th.FileCount != 3 {
+		t.Errorf("stats regressed: %+v", th)
+	}
+
+	// Missing count accumulates; archiving clears status from active.
+	n, err := st.RecordThreadMissing(ctx, threadID)
+	if err != nil || n != 1 {
+		t.Errorf("missing #1 = %d err=%v", n, err)
+	}
+	n, _ = st.RecordThreadMissing(ctx, threadID)
+	if n != 2 {
+		t.Errorf("missing #2 = %d", n)
+	}
+	if err := st.MarkThreadArchived(ctx, threadID); err != nil {
+		t.Fatal(err)
+	}
+	active, _ := st.ListActiveThreads(ctx, boardID)
+	if len(active) != 0 {
+		t.Errorf("active = %+v, want empty", active)
+	}
+	th, _ = st.GetThreadByID(ctx, threadID)
+	if th.Status != "archived" || !th.Archived {
+		t.Errorf("thread = %+v", th)
+	}
+
+	// Re-appearing in a catalog resurrects the thread.
+	_, created, err = st.UpsertThread(ctx, boardID, "100", "t", false, false, false, 0)
+	if err != nil || created {
+		t.Fatalf("re-upsert: created=%v err=%v", created, err)
+	}
+	th, _ = st.GetThreadByID(ctx, threadID)
+	if th.Status != "active" || th.MissingCount != 0 {
+		t.Errorf("resurrected thread = %+v", th)
+	}
+}
+
+func TestListStaleThreads(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "s", "https://s", "lynxchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "b", "B", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "100", "t", false, false, false, 0)
+	st.MarkThreadSeen(ctx, threadID, 0, 0, 0)
+
+	// Backdate the last-seen marker to simulate an old thread.
+	if _, err := st.pool.Exec(ctx,
+		`UPDATE threads SET last_seen_at = now() - interval '6 hours' WHERE id=$1`, threadID); err != nil {
+		t.Fatal(err)
+	}
+
+	stale, err := st.ListStaleThreads(ctx, boardID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stale) != 1 || stale[0].NativeID != "100" {
+		t.Errorf("stale = %+v", stale)
+	}
+	// Fresh threads are not stale.
+	st.MarkThreadSeen(ctx, threadID, 0, 0, 0)
+	stale, _ = st.ListStaleThreads(ctx, boardID, time.Hour)
+	if len(stale) != 0 {
+		t.Errorf("fresh thread reported stale: %+v", stale)
+	}
+}
+
+func TestJobsFailExhaustsToFailed(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "s", "https://s", "lynxchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "b", "B", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "1", "", false, false, false, 0)
+
+	if _, err := st.EnqueueJob(ctx, siteID, &boardID, &threadID, JobThread, nil, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	job, err := st.ClaimJob(ctx, siteID)
+	if err != nil || job == nil {
+		t.Fatalf("claim: %v %v", job, err)
+	}
+	if job.MaxAttempts != 10 {
+		t.Fatalf("max_attempts = %d, want 10", job.MaxAttempts)
+	}
+	// Fail until attempts exhaust; each failure reschedules pending.
+	for i := 0; i < 9; i++ {
+		if err := st.FailJob(ctx, job.ID, "boom", time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, _ := st.PendingJobCount(ctx, siteID, JobThread, &boardID, &threadID); n != 1 {
+		t.Errorf("pending after 9 fails = %d", n)
+	}
+	// Tenth fail pushes past max_attempts -> failed, not claimable.
+	if err := st.FailJob(ctx, job.ID, "boom", time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := st.PendingJobCount(ctx, siteID, JobThread, &boardID, &threadID); n != 0 {
+		t.Errorf("pending after exhaust = %d, want 0", n)
+	}
+	if again, err := st.ClaimJob(ctx, siteID); err != nil || again != nil {
+		t.Errorf("exhausted job re-claimed: %+v err=%v", again, err)
+	}
+}
+
+// TestBlobCrossSiteDedup verifies platform-provided hashes bind file rows to
+// existing blobs across sites before any bytes are downloaded.
+func TestBlobCrossSiteDedup(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	// Site A downloads a file whose platform md5 is known.
+	sa, _ := st.UpsertSite(ctx, "a", "https://a", "fourchan", false)
+	ba, _ := st.UpsertBoard(ctx, sa, "g", "G", false, true)
+	ta, _, _ := st.UpsertThread(ctx, ba, "100", "", false, false, false, 0)
+	st.UpsertThreadPosts(ctx, ta, []*adapter.Post{{
+		NativeID: "100", ThreadID: "100", CommentRaw: "x",
+		Files: []*adapter.File{{OriginalFilename: "a.png", Ext: ".png",
+			FullURL: "https://a/g/src/1.png", MD5: "abc123"}},
+	}})
+	pendings, _ := st.ListPendingDownloads(ctx, ta)
+	if len(pendings) != 1 {
+		t.Fatalf("pending = %d", len(pendings))
+	}
+	if err := st.RecordDownloadedFile(ctx, pendings[0].FileID, &Blob{
+		FileHash: "shaHASH", MimeType: "image/png", SizeBytes: 10,
+		StoragePath: "full/shaHASH.png", PlatformMD5: "abc123", FirstSeenPostID: pendings[0].PostID,
+	}, true, false); err != nil {
+		t.Fatal(err)
+	}
+
+	// Site B posts the same file; UpsertThreadPosts must bind it via md5.
+	sb, _ := st.UpsertSite(ctx, "b", "https://b", "fourchan", false)
+	bb, _ := st.UpsertBoard(ctx, sb, "b", "B", false, true)
+	tb, _, _ := st.UpsertThread(ctx, bb, "200", "", false, false, false, 0)
+	st.UpsertThreadPosts(ctx, tb, []*adapter.Post{{
+		NativeID: "200", ThreadID: "200", CommentRaw: "y",
+		Files: []*adapter.File{{OriginalFilename: "a.png", Ext: ".png",
+			FullURL: "https://b/b/src/1.png", MD5: "abc123"}},
+	}})
+
+	pendings, _ = st.ListPendingDownloads(ctx, tb)
+	if len(pendings) != 1 || pendings[0].FileHash != "shaHASH" {
+		t.Fatalf("site B file not bound to blob: %+v", pendings)
+	}
+	blob, err := st.GetBlobByPlatformHash(ctx, "abc123", "")
+	if err != nil || blob == nil || blob.FileHash != "shaHASH" {
+		t.Errorf("GetBlobByPlatformHash = %+v err=%v", blob, err)
+	}
+	if _, err := st.GetBlobByPlatformHash(ctx, "", ""); err != ErrBlobNotFound {
+		t.Errorf("empty hashes err = %v, want ErrBlobNotFound", err)
+	}
+}
+
+func TestUpsertThreadPostsIdempotentAndReplacesQuotes(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "s", "https://s", "lynxchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "b", "B", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "1", "", false, false, false, 0)
+
+	posts := []*adapter.Post{
+		{NativeID: "1", ThreadID: "1", CommentRaw: "first version"},
+		{NativeID: "2", ThreadID: "1", ParentID: "1", CommentRaw: ">>3 old", Quotes: []adapter.QuoteRef{{PostID: "3"}}},
+	}
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+	if n := postCount(t, st, threadID); n != 2 {
+		t.Fatalf("posts = %d", n)
+	}
+
+	// Re-upsert edits OP comment and changes the reply's quote set.
+	posts[0].CommentRaw = "second version"
+	posts[1].CommentRaw = ">>4 new"
+	posts[1].Quotes = []adapter.QuoteRef{{PostID: "4"}}
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+	if n := postCount(t, st, threadID); n != 2 {
+		t.Errorf("post count after re-upsert = %d, want 2 (no dupes)", n)
+	}
+
+	var comment string
+	if err := st.pool.QueryRow(ctx,
+		`SELECT comment_raw FROM posts WHERE thread_id=$1 AND post_native_id='1'`, threadID).
+		Scan(&comment); err != nil {
+		t.Fatal(err)
+	}
+	if comment != "second version" {
+		t.Errorf("comment = %q, want updated value", comment)
+	}
+
+	// Quote set replaced, not accumulated.
+	var quote string
+	if err := st.pool.QueryRow(ctx,
+		`SELECT quoted_post_native_id FROM posts p JOIN post_quotes q ON q.post_id=p.id
+		 WHERE p.thread_id=$1 AND p.post_native_id='2'`, threadID).Scan(&quote); err != nil {
+		t.Fatal(err)
+	}
+	if quote != "4" {
+		t.Errorf("quote = %q, want '4'", quote)
+	}
+}
+
+func TestUpsertSiteBoardUpdatesInPlace(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, err := st.UpsertSite(ctx, "s", "https://s", "lynxchan", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same site, updated platform: same id, new values.
+	id2, _ := st.UpsertSite(ctx, "s", "https://s2", "vichan", false)
+	if id2 != siteID {
+		t.Errorf("site id changed: %d -> %d", siteID, id2)
+	}
+	site, _ := st.GetSite(ctx, "s")
+	if site.Platform != "vichan" || site.BaseURL != "https://s2" {
+		t.Errorf("site not updated: %+v", site)
+	}
+
+	boardID, _ := st.UpsertBoard(ctx, siteID, "b", "Old", false, true)
+	boardID2, _ := st.UpsertBoard(ctx, siteID, "b", "New", true, false)
+	if boardID != boardID2 {
+		t.Errorf("board id changed")
+	}
+	board, _ := st.GetBoardByID(ctx, boardID)
+	if board.Title != "New" || !board.NSFW {
+		t.Errorf("board not updated: %+v", board)
+	}
+}

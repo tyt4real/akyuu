@@ -1,0 +1,19 @@
+# Leftypol — LynxChan fork, native JSON API (see docs/leftypol.org.md).
+name: leftypol
+base_url: https://leftypol.org
+platform: lynxchan
+api_available: true
+poll_interval: 90s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: leftypol
+    title: Politically Incorrect
+    nsfw: true
+  - code: tech
+    title: Technology
+    nsfw: false
+    download_full: true
+  - code: meta
+    title: Meta
+    nsfw: false

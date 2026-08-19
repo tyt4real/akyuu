@@ -1,0 +1,20 @@
+# Desuarchive.org — FoolFuuka archive of 4chan (see docs/desuarchive.md).
+#
+# Pulls 4chan thread history: boards auto-discover from the archive listing and
+# each board's full thread history is crawled page by page (paginated catalog).
+# Mirrored threads already pulled from live 4chan are skipped by design.
+name: desuarchive
+base_url: https://desuarchive.org
+platform: desuarchive
+api_available: true
+auto_boards: true
+paginated_catalog: true
+crawl_pages_per_poll: 1
+poll_interval: 60s
+rate_limit_per_sec: 0.1
+max_concurrent_requests: 1
+# Archive pulls are text + thumbnails only by default; set download_full: true
+# to also keep every original file.
+download_thumb: true
+download_full: false
+user_agent: "akyuu/0.1 (+https://example.invalid)"

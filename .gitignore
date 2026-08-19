@@ -1,0 +1,40 @@
+# Go build artifacts
+/akyuu
+/archiver
+/akyuu.exe
+/archiver.exe
+/bin/
+/dist/
+*.test
+*.out
+
+# Test coverage
+coverage.out
+coverage.html
+*.coverprofile
+
+# Runtime data (content-addressable storage tree)
+/storage/
+
+# Local/private configuration (contains DB credentials).
+# Commit config/config.yaml.example instead.
+/config/config.yaml
+.env
+.env.*
+!.env.example
+
+# Agent instructions (kept local; not shared with collaborators)
+.agents/
+AGENTS.md
+
+# Logs
+*.log
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+.DS_Store
+Thumbs.db

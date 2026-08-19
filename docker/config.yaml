@@ -1,0 +1,18 @@
+# Compose override of config/config.yaml: points the DSN at the `db` service
+# created by compose.yaml instead of localhost. Every other value falls back
+# to the shipped defaults baked into the image; tune them here as needed.
+database:
+  dsn: "postgres://akyuu:akyuu@db:5432/akyuu?sslmode=disable"
+
+scheduler:
+  poll_interval: 60s
+  rate_limit_per_sec: 1
+  max_concurrent_requests: 1
+  download_full: false
+  download_thumb: true
+  circuit_breaker_threshold: 5
+  max_attempts: 10
+  thread_stale_after: 12h
+  missing_before_archive: 3
+  workers_per_site: 1
+  download_backfill_batch: 50

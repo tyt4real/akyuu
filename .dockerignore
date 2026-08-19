@@ -1,0 +1,7 @@
+.git
+.gitignore
+.agents/
+AGENTS.md
+storage/
+config/config.yaml
+*.log

@@ -1,0 +1,45 @@
+# Akyuu archiver + its Postgres dependency.
+#
+#   docker compose up --build -d
+#
+# The config override (docker/config.yaml) points the archiver at the `db`
+# service; storage lives in the `storage` named volume, the database in
+# `pgdata`. Site YAMLs and the CSAM hash list are bind-mounted from the repo
+# so edits apply without a rebuild.
+
+name: akyuu
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: akyuu
+      POSTGRES_PASSWORD: akyuu
+      POSTGRES_DB: akyuu
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U akyuu -d akyuu"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+    # Uncomment to reach the database from the host for debugging:
+    # ports:
+    #   - "5432:5432"
+
+  archiver:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./docker/config.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - storage:/akyuu/storage
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  storage:

@@ -1,0 +1,25 @@
+# 4chan — fourchan platform, HTML only (see docs/4chan.org.md).
+name: 4chan
+base_url: https://boards.4chan.org
+platform: fourchan
+api_available: false
+# Route all scraping + downloads for this site through Tor (default Tor SOCKS5):
+# proxy: "socks5://127.0.0.1:9050"
+poll_interval: 60s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: g
+    title: Technology
+    nsfw: false
+    poll_interval: 30s
+  - code: diy
+    title: Do-It-Yourself
+    nsfw: false
+    download_full: true
+  - code: t
+    title: Toys
+    nsfw: false
+  - code: b
+    title: Random
+    nsfw: true

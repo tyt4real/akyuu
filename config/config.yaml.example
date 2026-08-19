@@ -1,0 +1,42 @@
+# Global archiver configuration.
+
+database:
+  # Local/private single-user Postgres. Create it with:
+  #   createdb akyuu
+  dsn: "postgres://akyuu:akyuu@localhost:5432/akyuu?sslmode=disable"
+
+storage:
+  # Root of the content-addressable tree: storage/full/..., storage/thumb/...
+  dir: "./storage"
+
+# CSAM hash-matching. This runs on EVERY downloaded file and cannot be
+# disabled per-site or per-board. Populate hash_list_path with one hex SHA-256
+# per line; optionally add a PhotoDNA-style API. With no source configured the
+# check still runs but matches nothing (see README).
+safety:
+  hash_list_path: "./config/csam_hashes.txt"
+  # api_url: "https://example.invalid/photodna"
+  # api_token: ""
+
+scheduler:
+  # Global defaults; each level (site -> board) can override the download flags.
+  poll_interval: 60s
+  rate_limit_per_sec: 1
+  max_concurrent_requests: 1
+  download_full: false
+  download_thumb: true
+  # text_only: true archives posts/threads but never stores files (no
+  # full-res and no thumbnails), overriding any site/board download flags.
+  text_only: false
+  # Open the per-site circuit after N consecutive failures, then cool down.
+  circuit_breaker_threshold: 5
+  max_attempts: 10
+  # A thread whose last_seen_at is older than this gets re-polled.
+  thread_stale_after: 12h
+  # Archive a thread after this many consecutive catalog misses.
+  missing_before_archive: 3
+  workers_per_site: 1
+  download_backfill_batch: 50
+
+sites_dir: "./config/sites"
+log_level: "info"
