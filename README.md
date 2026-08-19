@@ -1,4 +1,5 @@
-# akyuu - the imageboard archiver
+# akyuu - the better imageboard archiver
+<img width="520" height="699" alt="akyuu" src="https://github.com/user-attachments/assets/d5679f0e-d440-4d3d-b629-06b88d8dd6cd" />
 
 (((better patchouli?!)))
 
@@ -10,6 +11,8 @@ a mandatory CSAM hash check.
 
 No content is ever stored from a site — only structure (board, thread, post,
 quote graph, file metadata). Downloading bytes is optional and off by default.
+
+Built cuz the previous one was bad
 
 ## Quick start
 
