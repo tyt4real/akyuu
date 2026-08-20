@@ -47,9 +47,10 @@ func upsertPost(ctx context.Context, tx pgx.Tx, threadID int64, p *adapter.Post)
 	}
 	err := tx.QueryRow(ctx, `
 		INSERT INTO posts (thread_id, post_native_id, "timestamp", author_name, tripcode,
-		                   capcode, poster_id, comment_raw, comment_parsed, sage, country, flag)
+		                   capcode, poster_id, comment_raw, comment_parsed, sage, country, flag,
+		                   pending_embedding)
 		VALUES ($1, $2, $3, NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,''),
-		        $8, $9, $10, NULLIF($11,''), NULLIF($12,''))
+		        $8, $9, $10, NULLIF($11,''), NULLIF($12,''), TRUE)
 		ON CONFLICT (thread_id, post_native_id) DO UPDATE
 			SET "timestamp" = EXCLUDED."timestamp",
 			    author_name = EXCLUDED.author_name,
@@ -60,7 +61,10 @@ func upsertPost(ctx context.Context, tx pgx.Tx, threadID int64, p *adapter.Post)
 			    comment_parsed = EXCLUDED.comment_parsed,
 			    sage        = EXCLUDED.sage,
 			    country     = EXCLUDED.country,
-			    flag        = EXCLUDED.flag
+			    flag        = EXCLUDED.flag,
+			    -- Only re-embed when the text actually changed; steady-state
+			    -- re-polls of unchanged posts stay embedded.
+			    pending_embedding = (posts.comment_parsed IS DISTINCT FROM EXCLUDED.comment_parsed)
 		RETURNING id`,
 		threadID, p.NativeID, ts, p.Name, p.Tripcode, p.Capcode, p.PosterID,
 		p.CommentRaw, p.CommentHTML, p.Sage, p.Country, p.Flag).Scan(&id)

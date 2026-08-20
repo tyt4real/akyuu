@@ -44,6 +44,16 @@ type Thread struct {
 	LastSeenAt   *time.Time
 }
 
+// Post mirrors a post row (the embed worker's selection target).
+type Post struct {
+	ID               int64
+	ThreadID         int64
+	NativeID         string
+	Timestamp        *time.Time
+	CommentParsed    string
+	PendingEmbedding bool
+}
+
 // Job mirrors the jobs table.
 type Job struct {
 	ID          int64

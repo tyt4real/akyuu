@@ -37,9 +37,48 @@ type Config struct {
 
 	Scheduler SchedulerConfig `yaml:"scheduler"`
 
+	// Embeddings drives the semantic-search pipeline: an in-process ONNX
+	// sentence-embedding model embeds post bodies into a pgvector column. All
+	// of it is opt-in; with enabled:false the scheduler never touches the
+	// model and the search API is unavailable.
+	Embeddings EmbeddingsConfig `yaml:"embeddings"`
+
 	SitesDir string `yaml:"sites_dir"`
 
 	LogLevel string `yaml:"log_level"`
+}
+
+// EmbeddingsConfig configures the semantic-search ingestion and query path.
+type EmbeddingsConfig struct {
+	// Enabled turns the embed worker on (cmd/archiver) and unlocks /search
+	// (cmd/api). When false, posts are never embedded and search is disabled.
+	Enabled bool `yaml:"enabled"`
+
+	// ModelDir holds model.onnx plus tokenizer.json (a HuggingFace
+	// sentence-embedding model, e.g. all-MiniLM-L6-v2). Not shipped with the
+	// binary; download it separately (see docs/semantic-search.md).
+	ModelDir string `yaml:"model_dir"`
+
+	// Dimensions is the vector width produced by the model. It is locked in at
+	// migration time (post_embeddings.embedding is vector(384)); a model swap
+	// requires a new migration.
+	Dimensions int `yaml:"dimensions"`
+
+	// ModelName identifies the model in post_embeddings.model_version. Search
+	// only returns vectors stored under the same name, so a model change means
+	// old vectors are ignored until re-embedded.
+	ModelName string `yaml:"model_name"`
+
+	// BatchSize is how many posts the worker embeds in one model call.
+	BatchSize int `yaml:"batch_size"`
+
+	// PollInterval is how long the worker idles when the embedding queue is
+	// empty.
+	PollInterval Duration `yaml:"poll_interval"`
+
+	// MinTextLength is the minimum number of characters a cleaned post body
+	// must have to be embedded; shorter/empty posts are marked non-searchable.
+	MinTextLength int `yaml:"min_text_length"`
 }
 
 // SchedulerConfig holds global defaults. Site/board configs override the
@@ -78,6 +117,11 @@ func Defaults() *Config {
 	c.Storage.Dir = "./storage"
 	c.SitesDir = "./config/sites"
 	c.LogLevel = "info"
+	c.Embeddings.Dimensions = 384
+	c.Embeddings.ModelName = "all-MiniLM-L6-v2"
+	c.Embeddings.BatchSize = 32
+	c.Embeddings.PollInterval = Duration(10 * time.Second)
+	c.Embeddings.MinTextLength = 8
 	return c
 }
 
@@ -105,6 +149,18 @@ func Load(path string) (*Config, error) {
 	}
 	if c.Scheduler.WorkersPerSite <= 0 {
 		c.Scheduler.WorkersPerSite = 1
+	}
+	if c.Embeddings.Dimensions <= 0 {
+		c.Embeddings.Dimensions = 384
+	}
+	if c.Embeddings.BatchSize <= 0 {
+		c.Embeddings.BatchSize = 32
+	}
+	if c.Embeddings.PollInterval <= 0 {
+		c.Embeddings.PollInterval = Duration(10 * time.Second)
+	}
+	if c.Embeddings.MinTextLength < 0 {
+		c.Embeddings.MinTextLength = 0
 	}
 	return c, nil
 }

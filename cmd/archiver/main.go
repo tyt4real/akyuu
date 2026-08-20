@@ -13,6 +13,7 @@ import (
 
 	"akyuu/internal/config"
 	"akyuu/internal/downloader"
+	"akyuu/internal/embedder"
 	"akyuu/internal/scheduler"
 	"akyuu/internal/store"
 )
@@ -61,9 +62,35 @@ func main() {
 	}
 
 	sched := scheduler.New(st, cfg, sites, checker, logger)
+	if cfg.Embeddings.Enabled {
+		if err := startEmbedWorker(ctx, st, cfg, logger); err != nil {
+			logger.Error("start embed worker", "err", err)
+			os.Exit(1)
+		}
+	} else {
+		logger.Info("embeddings disabled; semantic search is off")
+	}
 	logger.Info("archiver starting", "sites", len(sites))
 	sched.Run(ctx)
 	logger.Info("archiver stopped")
+}
+
+// startEmbedWorker loads the ONNX model and runs the embedding worker in the
+// background until ctx is cancelled.
+func startEmbedWorker(ctx context.Context, st *store.Store, cfg *config.Config, logger *slog.Logger) error {
+	model, err := embedder.NewONNX(cfg.Embeddings.ModelDir, cfg.Embeddings.ModelName, cfg.Embeddings.Dimensions)
+	if err != nil {
+		return err
+	}
+	go func() {
+		defer model.Close()
+		embedder.NewWorker(st, model, embedder.WorkerConfig{
+			BatchSize:     cfg.Embeddings.BatchSize,
+			PollInterval:  cfg.Embeddings.PollInterval.D(),
+			MinTextLength: cfg.Embeddings.MinTextLength,
+		}, logger).Run(ctx)
+	}()
+	return nil
 }
 
 // syncSites upserts every configured site and board so the scheduler's lookups

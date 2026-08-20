@@ -40,3 +40,19 @@ scheduler:
 
 sites_dir: "./config/sites"
 log_level: "info"
+
+# Semantic search over post bodies (see docs/semantic-search.md).
+# Enabled: false leaves the archiver archive-only; no model is loaded.
+embeddings:
+  enabled: false
+  # Directory holding model.onnx and tokenizer.json (a HuggingFace
+  # sentence-embedding model, e.g. all-MiniLM-L6-v2 from
+  # https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
+  model_dir: "./models/all-MiniLM-L6-v2"
+  model_name: "all-MiniLM-L6-v2"
+  # Must match the model and the post_embeddings.embedding column width.
+  dimensions: 384
+  batch_size: 32
+  poll_interval: 10s
+  # Posts whose cleaned text is shorter than this are not searchable.
+  min_text_length: 8

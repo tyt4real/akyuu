@@ -104,6 +104,187 @@ func TestArchivePageCursorAndMirrorDedup(t *testing.T) {
 	}
 }
 
+func TestEmbeddingLifecycleAndSearch(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, err := st.UpsertSite(ctx, "4chan", "https://boards.4chan.org", "fourchan", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boardID, err := st.UpsertBoard(ctx, siteID, "g", "Technology", false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	threadID, _, err := st.UpsertThread(ctx, boardID, "100", "linux thread", false, false, false, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Three posts: two with text (one with a file), one empty.
+	posts := []*adapter.Post{
+		{NativeID: "100", ThreadID: "100", Timestamp: 1000, CommentHTML: "best linux distro debates",
+			Files: []*adapter.File{{FullURL: "https://x/1.png"}}},
+		{NativeID: "101", ThreadID: "100", ParentID: "100", Timestamp: 2000, CommentHTML: "cooking recipes thread"},
+		{NativeID: "102", ThreadID: "100", ParentID: "100", Timestamp: 3000, CommentHTML: ""},
+	}
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+
+	// All three are pending.
+	batch, err := st.PendingEmbeddingBatch(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(batch) != 3 {
+		t.Fatalf("pending batch = %d, want 3", len(batch))
+	}
+	var id100, id101, id102 int64
+	for _, p := range batch {
+		switch p.NativeID {
+		case "100":
+			id100 = p.ID
+		case "101":
+			id101 = p.ID
+		case "102":
+			id102 = p.ID
+		}
+	}
+	if id100 == 0 || id101 == 0 || id102 == 0 {
+		t.Fatalf("ids not resolved: %d %d %d", id100, id101, id102)
+	}
+
+	// Embed the text posts, skip the empty one.
+	if err := st.MarkEmbedding(ctx, id100, vecPrimary(0), "mini", "hash1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MarkEmbedding(ctx, id101, vecPrimary(1), "mini", "hash2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MarkEmbedding(ctx, id101, vecPrimary(1), "mini", "hash2b"); err != nil {
+		t.Fatal(err) // idempotent upsert path
+	}
+	if err := st.MarkEmbeddingSkipped(ctx, id102); err != nil {
+		t.Fatal(err)
+	}
+
+	// Flags cleared; only nothing left pending.
+	if batch, _ := st.PendingEmbeddingBatch(ctx, 10); len(batch) != 0 {
+		t.Fatalf("pending batch after processing = %d, want 0", len(batch))
+	}
+	var embedCount int
+	if err := st.pool.QueryRow(ctx, `SELECT count(*) FROM post_embeddings`).Scan(&embedCount); err != nil {
+		t.Fatal(err)
+	}
+	if embedCount != 2 {
+		t.Errorf("embedding rows = %d, want 2", embedCount)
+	}
+
+	// Search: query aligned with post 100 ranks it first.
+	now := time.Now()
+	epoch := time.Unix(0, 0)
+	late := time.Unix(4000, 0)
+	res, err := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 2 {
+		t.Fatalf("results = %d, want 2", len(res))
+	}
+	if res[0].PostID != id100 {
+		t.Errorf("top hit = %d, want %d (score %.3f)", res[0].PostID, id100, res[0].Score)
+	}
+	if res[0].Score <= res[1].Score {
+		t.Errorf("ordering not by score: %.3f <= %.3f", res[0].Score, res[1].Score)
+	}
+	if res[0].Site != "4chan" || res[0].Board != "g" || res[0].ThreadNativeID != "100" ||
+		res[0].ThreadID != threadID || res[0].Excerpt == "" {
+		t.Errorf("result metadata = %+v", res[0])
+	}
+
+	// Different model_version must be isolated (nothing matches "other").
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "other", SearchOpts{}); len(res) != 0 {
+		t.Errorf("cross-model results = %d, want 0", len(res))
+	}
+
+	// Site/board/date/attachment/thread filters.
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{Site: "nope"}); len(res) != 0 {
+		t.Errorf("site filter not applied: %d", len(res))
+	}
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{Board: "g"}); len(res) != 2 {
+		t.Errorf("board filter: %d", len(res))
+	}
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{DateFrom: &now}); len(res) != 0 {
+		t.Errorf("date_from filter: %d", len(res))
+	}
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{DateTo: &now}); len(res) != 2 {
+		t.Errorf("date_to filter: %d", len(res))
+	}
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{DateFrom: &epoch, DateTo: &late}); len(res) != 2 {
+		t.Errorf("date range filter: %d", len(res))
+	}
+	has := true
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{HasAttachment: &has}); len(res) != 1 || res[0].PostID != id100 {
+		t.Errorf("has_attachment filter: %+v", res)
+	}
+	no := false
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{HasAttachment: &no}); len(res) != 1 || res[0].PostID != id101 {
+		t.Errorf("no-attachment filter: %+v", res)
+	}
+	if res, _ := st.SearchEmbeddings(ctx, vecPrimary(0), "mini", SearchOpts{ThreadID: &threadID}); len(res) != 2 {
+		t.Errorf("thread filter: %d", len(res))
+	}
+}
+
+func TestPendingEmbeddingSetOnEdit(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "s", "https://s", "vichan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "b", "B", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "1", "t", false, false, false, 0)
+
+	posts := []*adapter.Post{{NativeID: "1", ThreadID: "1", Timestamp: 1, CommentHTML: "hello world"}}
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+	batch, _ := st.PendingEmbeddingBatch(ctx, 10)
+	if len(batch) != 1 {
+		t.Fatalf("pending after insert = %d", len(batch))
+	}
+	id := batch[0].ID
+	if err := st.MarkEmbeddingSkipped(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-poll with unchanged text must NOT re-flag.
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+	if batch, _ := st.PendingEmbeddingBatch(ctx, 10); len(batch) != 0 {
+		t.Errorf("unchanged re-poll re-flagged: %d", len(batch))
+	}
+	// Re-poll with changed text must re-flag.
+	posts[0].CommentHTML = "hello world again"
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+	if batch, _ := st.PendingEmbeddingBatch(ctx, 10); len(batch) != 1 {
+		t.Errorf("edited re-poll not re-flagged: %d", len(batch))
+	}
+}
+
+// vecPrimary builds a unit vector of EMBEDDING_DIM dimensions with a 1 at
+// index primary and 0 elsewhere.
+func vecPrimary(primary int) []float32 {
+	v := make([]float32, 384)
+	v[primary] = 1
+	return v
+}
+
 func TestThreadLifecycle(t *testing.T) {
 	st := testStore(t)
 	mustClean(t, st)

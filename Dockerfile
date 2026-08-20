@@ -8,17 +8,32 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/archiver ./cmd/archiver
+# The embedder links against onnxruntime via cgo, so CGO must be enabled.
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/archiver ./cmd/archiver \
+    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
 # --- runtime stage -----------------------------------------------------------
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata \
-    && adduser -D -u 10001 -h /akyuu akyuu
+# Debian-based: the ONNX Runtime shared library needs glibc (not musl), so
+# alpine cannot run the embedder.
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates tzdata libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m -u 10001 -d /akyuu akyuu
 
 WORKDIR /akyuu
 
+# libonnxruntime.so must sit where onnxruntime_go can dlopen it.
+ENV LD_LIBRARY_PATH=/usr/local/lib/onnxruntime
+ENV ORT_LIBRARY_PATH=/usr/local/lib/onnxruntime/libonnxruntime.so
+
 COPY --from=build /out/archiver /usr/local/bin/archiver
-# Sane defaults; mount your own config over /akyuu/config at runtime.
+COPY --from=build /out/api /usr/local/bin/api
+
+# Default images are built for the archiver; the api binary ships alongside it
+# (docker run <image> api -listen :8080). The ONNX model files and
+# libonnxruntime.so are mounted at runtime — see docs/semantic-search.md — and
+# the pipeline is enabled via the embeddings section of config.
 COPY config/config.yaml.example ./config/config.yaml
 COPY config/sites ./config/sites
 RUN touch ./config/csam_hashes.txt \

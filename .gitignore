@@ -16,6 +16,10 @@ coverage.html
 # Runtime data (content-addressable storage tree)
 /storage/
 
+# Downloaded embedding models + ONNX Runtime shared library (hundreds of MB;
+# see docs/semantic-search.md for how to fetch them)
+/models/
+
 # Local/private configuration (contains DB credentials).
 # Commit config/config.yaml.example instead.
 /config/config.yaml
@@ -38,3 +42,4 @@ AGENTS.md
 *~
 .DS_Store
 Thumbs.db
+docs/

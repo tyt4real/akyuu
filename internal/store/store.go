@@ -40,11 +40,19 @@ func New(ctx context.Context, dsn string, logger *slog.Logger) (*Store, error) {
 // Close releases the pool.
 func (s *Store) Close() { s.pool.Close() }
 
+// Ping verifies the database connection; used by health checks.
+func (s *Store) Ping(ctx context.Context) error {
+	if err := s.pool.Ping(ctx); err != nil {
+		return fmt.Errorf("store: ping: %w", err)
+	}
+	return nil
+}
+
 // ResetAll truncates every table. It exists for integration tests that run
 // against a shared database; it is not used by the running archiver.
 func (s *Store) ResetAll(ctx context.Context) error {
 	if _, err := s.pool.Exec(ctx,
-		`TRUNCATE files, post_quotes, posts, threads, boards, sites, blobs, jobs RESTART IDENTITY`); err != nil {
+		`TRUNCATE post_embeddings, files, post_quotes, posts, threads, boards, sites, blobs, jobs RESTART IDENTITY`); err != nil {
 		return fmt.Errorf("store: reset all: %w", err)
 	}
 	return nil

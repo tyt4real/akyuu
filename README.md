@@ -7,7 +7,8 @@ A self-hosted, multi-site imageboard archiver. It polls 4chan-style boards
 (4chan itself, vichan forks, LynxChan instances) plus FoolFuuka 4chan archives
 into a normalized Postgres schema, keeps one copy of every unique file content
 across all sites, and can optionally download full images and thumbnails behind
-a mandatory CSAM hash check.
+a mandatory CSAM hash check. It can also index post bodies and answer
+**semantic search** queries over the archive (see below).
 
 No content is ever stored from a site — only structure (board, thread, post,
 quote graph, file metadata). Downloading bytes is optional and off by default.
@@ -85,6 +86,14 @@ live board:
   thread already pulled from live 4chan (or from the archive on another board)
   is never pulled again — the catalog entry is skipped. See
   `docs/desuarchive.md`.
+
+### Semantic search
+
+Post bodies can be embedded (in-process ONNX, pgvector) and searched by
+meaning. Opt-in via the `embeddings` config section; an embed worker inside
+`cmd/archiver` indexes posts (including the one-time backfill of existing
+archives), and a separate `cmd/api` binary serves `POST /search` and
+`GET /health`. Setup, API shape and caveats: `docs/semantic-search.md`.
 
 ### Supported platforms
 

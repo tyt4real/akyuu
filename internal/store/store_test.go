@@ -31,7 +31,7 @@ func testStore(t *testing.T) *Store {
 func mustClean(t *testing.T, st *Store) {
 	t.Helper()
 	_, err := st.pool.Exec(context.Background(),
-		`TRUNCATE files, post_quotes, posts, threads, boards, sites, blobs, jobs RESTART IDENTITY`)
+		`TRUNCATE post_embeddings, files, post_quotes, posts, threads, boards, sites, blobs, jobs RESTART IDENTITY`)
 	if err != nil {
 		t.Fatal(err)
 	}
