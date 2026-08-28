@@ -17,6 +17,7 @@ type Blob struct {
 	ThumbStoragePath string
 	PlatformMD5      string
 	PlatformSHA1     string
+	PlatformPHASH    string    // perceptual hash (pHash/dHash) for cross-board meme lineage
 	FirstSeenPostID  int64
 	RefCount         int
 }
@@ -208,4 +209,40 @@ func (s *Store) BlobCount(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	return n, nil
+}
+
+// BlobByPHASH returns blobs matching the given perceptual hash and algo.
+func (s *Store) BlobByPHASH(ctx context.Context, hash string, algo string) ([]*Blob, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT b.file_hash, b.mime_type, b.size_bytes, b.storage_path,
+		       b.thumb_storage_path, b.platform_md5, b.platform_sha1, b.platform_phash,
+		       b.first_seen_post_id, b.ref_count
+		FROM blobs b
+		WHERE b.platform_phash = $1 AND b.platform_phash IS NOT NULL`, hash)
+	if err != nil {
+		return nil, fmt.Errorf("store: blob by phash: %w", err)
+	}
+	defer rows.Close()
+	var out []*Blob
+	for rows.Next() {
+		var b Blob
+		if err := rows.Scan(&b.FileHash, &b.MimeType, &b.SizeBytes,
+			&b.StoragePath, &b.ThumbStoragePath, &b.PlatformMD5, &b.PlatformSHA1,
+			&b.PlatformPHASH, &b.FirstSeenPostID, &b.RefCount); err != nil {
+			return nil, err
+		}
+		out = append(out, &b)
+	}
+	return out, rows.Err()
+}
+
+// SetBlobPHASH sets the perceptual hash on a blob.
+func (s *Store) SetBlobPHASH(ctx context.Context, hash string, algo string) error {
+	_, err := s.pool.Exec(ctx,`
+		UPDATE blobs SET platform_phash = $1
+		WHERE platform_phash IS DISTINCT FROM $1`, hash)
+	if err != nil {
+		return fmt.Errorf("store: set blob phash: %w", err)
+	}
+	return nil
 }

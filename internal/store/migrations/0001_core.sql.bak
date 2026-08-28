@@ -63,10 +63,6 @@ CREATE TABLE IF NOT EXISTS posts (
     sage            BOOLEAN       NOT NULL DEFAULT FALSE,
     country         TEXT,
     flag            TEXT,
-    original_board  TEXT,          -- original board name where the post came from
-    website         TEXT,          -- website/source it came from
-    original_thread_number TEXT,  -- original thread number from the source
-    original_attachment_link TEXT, -- original link to the attachment
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
     UNIQUE (thread_id, post_native_id)
 );

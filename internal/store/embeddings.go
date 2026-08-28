@@ -82,6 +82,7 @@ type SearchOpts struct {
 	DateTo        *time.Time // optional upper bound on post timestamp
 	HasAttachment *bool      // optional: only posts with a file row
 	Limit         int        // result cap (clamped to 1..100, default 20)
+	FTSQuery      string     // optional full-text search query
 }
 
 // SearchResult is one semantic-search hit with enough context to jump into the
@@ -129,11 +130,12 @@ func (s *Store) SearchEmbeddings(ctx context.Context, query []float32, modelVers
 		        OR ($8 = TRUE  AND EXISTS (SELECT 1 FROM files f WHERE f.post_id = p.id))
 		        OR ($8 = FALSE AND NOT EXISTS (SELECT 1 FROM files f WHERE f.post_id = p.id))
 		      )
+			  AND ($9::tsvector IS NULL OR p.comment_tsv @@ plainto_tsquery($9::text))
 		ORDER BY pe.embedding <=> $1::vector
 		LIMIT $9`,
 		formatVector(query), modelVersion,
 		nullIfEmpty(opts.Site), nullIfEmpty(opts.Board),
-		opts.ThreadID, opts.DateFrom, opts.DateTo, opts.HasAttachment, limit)
+		opts.ThreadID, opts.DateFrom, opts.DateTo, opts.HasAttachment, opts.FTSQuery, limit)
 	if err != nil {
 		return nil, fmt.Errorf("store: search embeddings: %w", err)
 	}

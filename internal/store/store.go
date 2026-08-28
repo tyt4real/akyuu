@@ -5,11 +5,13 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -244,7 +246,7 @@ func (s *Store) FindThreadMirror(ctx context.Context, boardID int64, nativeID st
 	t, err := s.scanThread(s.pool.QueryRow(ctx, `
 		SELECT t.id, t.board_id, t.thread_native_id, coalesce(t.subject,''),
 		       t.sticky, t.locked, t.archived, t.status,
-		       t.last_bump_time, t.reply_count, t.file_count, t.missing_count, t.last_seen_at
+	       t.last_bump_time, t.reply_count, t.file_count, t.missing_count, t.last_seen_at
 		FROM threads t
 		JOIN boards b ON b.id = t.board_id
 		JOIN sites st ON st.id = b.site_id
@@ -260,4 +262,121 @@ func (s *Store) FindThreadMirror(ctx context.Context, boardID int64, nativeID st
 		return nil, fmt.Errorf("store: find mirror %s: %w", nativeID, err)
 	}
 	return t, nil
+}
+
+// ListPosts returns posts with optional filtering by site, board, thread native ID, and attachment status.
+func (s *Store) ListPosts(ctx context.Context, site, board, nativeID string, hasAttachment *bool) ([]*Post, error) {
+	query := `
+		SELECT id, thread_id, post_native_id, "timestamp", author_name, tripcode,
+		       capcode, poster_id, comment_parsed, sage, country, flag,
+	               original_board, website, original_thread_number, original_attachment_link
+		FROM posts WHERE 1=1`
+	args := []any{}
+	conds := []string{}
+
+	if site != "" {
+		conds = append(conds, fmt.Sprintf("thread_id IN (SELECT id FROM threads WHERE board_id IN (SELECT id FROM boards WHERE site_id = $%d))", len(args)+1))
+		args = append(args, site)
+	}
+	if board != "" {
+		conds = append(conds, fmt.Sprintf("thread_id IN (SELECT id FROM threads WHERE board_id = $%d)", len(args)+1))
+		args = append(args, board)
+	}
+	if nativeID != "" {
+		conds = append(conds, fmt.Sprintf("post_native_id = $%d", len(args)+1))
+		args = append(args, nativeID)
+	}
+	if hasAttachment != nil {
+		if *hasAttachment {
+			conds = append(conds, "comment_parsed IS NOT NULL AND comment_parsed != ''")
+		} else {
+			conds = append(conds, "comment_parsed IS NULL OR comment_parsed = ''")
+		}
+	}
+
+	if len(conds) > 0 {
+		query += " AND " + strings.Join(conds, " AND ")
+	}
+
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("store: list posts: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*Post
+	for rows.Next() {
+		var p Post
+		var commentParsed sql.NullString
+		if err := rows.Scan(&p.ID, &p.ThreadID, &p.NativeID, &p.Timestamp, &p.AuthorName, &p.Tripcode,
+			&p.Capcode, &p.PosterID, &commentParsed, &p.PendingEmbedding,
+			&p.Country, &p.Flag, &p.OriginalBoard, &p.Website, &p.OriginalThread, &p.OriginalLink); err != nil {
+			return nil, fmt.Errorf("store: scan post: %w", err)
+		}
+		if commentParsed.Valid {
+			p.CommentParsed = commentParsed.String
+		}
+		out = append(out, &p)
+	}
+	return out, rows.Err()
+}
+
+// Tag returns a tag by name.
+func (s *Store) Tag(ctx context.Context, name string) (*Tag, error) {
+	row := s.pool.QueryRow(ctx, `SELECT id, name, created_at FROM tags WHERE name = $1`, name)
+	t := &Tag{}
+	if err := row.Scan(&t.ID, &t.Name, &t.CreatedAt); err != nil {
+		return nil, fmt.Errorf("store: tag %q: %w", name, err)
+	}
+	return t, nil
+}
+
+// TagCreate creates a tag, returning an error if it already exists.
+func (s *Store) TagCreate(ctx context.Context, name string) (*Tag, error) {
+	_, err := s.Tag(ctx, name)
+	if err == nil {
+		return nil, fmt.Errorf("store: tag %q already exists", name)
+	}
+	if _, err := s.pool.Exec(ctx, `INSERT INTO tags (name) VALUES ($1)`, name); err != nil {
+		return nil, fmt.Errorf("store: create tag %q: %w", name, err)
+	}
+	return s.Tag(ctx, name)
+}
+
+// TagAttachLinks adds tag-to-post associations. Existing links are silently ignored.
+func (s *Store) TagAttachLinks(ctx context.Context, tagID int64, postIDs []int64) error {
+	if len(postIDs) == 0 {
+		return nil
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("store: begin tag tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	for _, postID := range postIDs {
+		_, err := tx.Exec(ctx, `INSERT INTO taggings (tag_id, post_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, tagID, postID)
+		if err != nil {
+			return fmt.Errorf("store: tag attach post %d: %w", postID, err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// TagThreadLinks adds tag-to-thread associations. Existing links are silently ignored.
+func (s *Store) TagThreadLinks(ctx context.Context, tagID int64, threadIDs []int64) error {
+	if len(threadIDs) == 0 {
+		return nil
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("store: begin tag tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	for _, threadID := range threadIDs {
+		_, err := tx.Exec(ctx, `INSERT INTO taggings_threads (tag_id, thread_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, tagID, threadID)
+		if err != nil {
+			return fmt.Errorf("store: tag attach thread %d: %w", threadID, err)
+		}
+	}
+	return tx.Commit(ctx)
 }

@@ -49,6 +49,10 @@ type Post struct {
 	Quotes      []QuoteRef
 	Files       []*File
 	Subject     string
+	OriginalBoard   string // original board name where the post came from
+	Website         string // website/source it came from
+	OriginalThread  string // original thread number from the source
+	OriginalLink    string // original link to the attachment
 }
 
 // QuoteRef is a >>12345 / >>>/board/123 reference found in a comment.

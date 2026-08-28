@@ -60,7 +60,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           apiserver.New(model, st, st, logger).Routes(),
+		Handler:           apiserver.New(model, st, st, st, logger).Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

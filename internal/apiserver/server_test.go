@@ -32,13 +32,13 @@ type fakeHealth struct{ err error }
 
 func (f fakeHealth) Ping(context.Context) error { return f.err }
 
-func newTestServer(searcher Searcher, health HealthChecker) *httptest.Server {
-	ts := httptest.NewServer(New(embedder.NewFake(), searcher, health, nil).Routes())
+func newTestServer(searcher Searcher, health HealthChecker, store *store.Store) *httptest.Server {
+	ts := httptest.NewServer(New(embedder.NewFake(), searcher, health, store, nil).Routes())
 	return ts
 }
 
 func TestHealthOK(t *testing.T) {
-	srv := newTestServer(&fakeSearcher{}, fakeHealth{})
+	srv := newTestServer(&fakeSearcher{}, fakeHealth{}, nil)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/health")
 	if err != nil {
@@ -58,7 +58,7 @@ func TestHealthOK(t *testing.T) {
 }
 
 func TestHealthDegraded(t *testing.T) {
-	srv := newTestServer(&fakeSearcher{}, fakeHealth{err: errors.New("down")})
+	srv := newTestServer(&fakeSearcher{}, fakeHealth{err: errors.New("down")}, nil)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/health")
 	if err != nil {
@@ -76,7 +76,7 @@ func TestSearchFindsResults(t *testing.T) {
 		{PostID: 9, Score: 0.93, Site: "fourchan", Board: "g", ThreadID: 2,
 			ThreadNativeID: "100", Timestamp: &ts, Excerpt: "best linux distro debates"},
 	}}
-	srv := newTestServer(fs, fakeHealth{})
+	srv := newTestServer(fs, fakeHealth{}, nil)
 	defer srv.Close()
 
 	body := `{"query":"linux distro","site":"fourchan","board":"g","limit":5}`
@@ -109,7 +109,7 @@ func TestSearchFindsResults(t *testing.T) {
 }
 
 func TestSearchRequiresQuery(t *testing.T) {
-	srv := newTestServer(&fakeSearcher{}, fakeHealth{})
+	srv := newTestServer(&fakeSearcher{}, fakeHealth{}, nil)
 	defer srv.Close()
 	resp, err := http.Post(srv.URL+"/search", "application/json", strings.NewReader(`{"query":""}`))
 	if err != nil {
@@ -122,7 +122,7 @@ func TestSearchRequiresQuery(t *testing.T) {
 }
 
 func TestSearchBadJSON(t *testing.T) {
-	srv := newTestServer(&fakeSearcher{}, fakeHealth{})
+	srv := newTestServer(&fakeSearcher{}, fakeHealth{}, nil)
 	defer srv.Close()
 	resp, err := http.Post(srv.URL+"/search", "application/json", strings.NewReader(`{not json`))
 	if err != nil {
@@ -135,7 +135,7 @@ func TestSearchBadJSON(t *testing.T) {
 }
 
 func TestSearchStoreError(t *testing.T) {
-	srv := newTestServer(&fakeSearcher{err: errors.New("boom")}, fakeHealth{})
+	srv := newTestServer(&fakeSearcher{err: errors.New("boom")}, fakeHealth{}, nil)
 	defer srv.Close()
 	resp, err := http.Post(srv.URL+"/search", "application/json",
 		strings.NewReader(`{"query":"linux distro"}`))

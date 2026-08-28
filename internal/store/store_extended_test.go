@@ -420,6 +420,178 @@ func TestJobsFailExhaustsToFailed(t *testing.T) {
 	}
 }
 
+func TestPostOriginalData(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "4chan", "https://boards.4chan.org", "fourchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "g", "Tech", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "100", "test thread", false, false, false, 0)
+
+	posts := []*adapter.Post{
+		{
+			NativeID:      "100",
+			ThreadID:      "100",
+			Timestamp:     1000,
+			CommentHTML:   "original post",
+			OriginalBoard: "g",
+			Website:       "4chan",
+			OriginalThread: "100",
+			OriginalLink:  "https://i.4cdn.org/g/thread/100/",
+			Files: []*adapter.File{
+				{
+					FullURL: "https://i.4cdn.org/g/100.jpg",
+					ThumbURL:      "https://i.4cdn.org/g/100s.jpg",
+				},
+			},
+		},
+	}
+
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the new columns are persisted
+	var ob, website, otn, oal string
+	err := st.pool.QueryRow(ctx,
+		`SELECT original_board, website, original_thread_number, original_attachment_link
+		 FROM posts WHERE thread_id=$1 AND post_native_id='100'`, threadID).
+		Scan(&ob, &website, &otn, &oal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob != "g" {
+		t.Errorf("original_board = %q, want %q", ob, "g")
+	}
+	if website != "4chan" {
+		t.Errorf("website = %q, want %q", website, "4chan")
+	}
+	if otn != "100" {
+		t.Errorf("original_thread_number = %q, want %q", otn, "100")
+	}
+	if oal != "https://i.4cdn.org/g/thread/100/" {
+		t.Errorf("original_attachment_link = %q, want %q", oal, "https://i.4cdn.org/g/thread/100/")
+	}
+}
+
+func TestPostOriginalDataIdempotentUpdate(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "4chan", "https://boards.4chan.org", "fourchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "g", "Tech", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "100", "test thread", false, false, false, 0)
+
+	posts := []*adapter.Post{
+		{
+			NativeID:      "100",
+			ThreadID:      "100",
+			Timestamp:     1000,
+			CommentHTML:   "original post",
+			OriginalBoard: "g",
+			Website:       "4chan",
+			OriginalThread: "100",
+			OriginalLink:  "https://i.4cdn.org/g/thread/100/",
+		},
+	}
+
+	// First insert
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify values
+	var ob, website, otn, oal string
+	err := st.pool.QueryRow(ctx,
+		`SELECT original_board, website, original_thread_number, original_attachment_link
+		 FROM posts WHERE thread_id=$1 AND post_native_id='100'`, threadID).
+		Scan(&ob, &website, &otn, &oal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob != "g" || website != "4chan" || otn != "100" || oal != "https://i.4cdn.org/g/thread/100/" {
+		t.Errorf("initial values: ob=%q website=%q otn=%q oal=%q", ob, website, otn, oal)
+	}
+
+	// Re-upsert with different original data
+	posts[0].OriginalBoard = "g2"
+	posts[0].Website = "4chan2"
+	posts[0].OriginalThread = "200"
+	posts[0].OriginalLink = "https://i.4cdn.org/g2/thread/200/"
+
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify updated values
+	err = st.pool.QueryRow(ctx,
+		`SELECT original_board, website, original_thread_number, original_attachment_link
+		 FROM posts WHERE thread_id=$1 AND post_native_id='100'`, threadID).
+		Scan(&ob, &website, &otn, &oal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob != "g2" {
+		t.Errorf("after update original_board = %q, want %q", ob, "g2")
+	}
+	if website != "4chan2" {
+		t.Errorf("after update website = %q, want %q", website, "4chan2")
+	}
+	if otn != "200" {
+		t.Errorf("after update original_thread_number = %q, want %q", otn, "200")
+	}
+	if oal != "https://i.4cdn.org/g2/thread/200/" {
+		t.Errorf("after update original_attachment_link = %q, want %q", oal, "https://i.4cdn.org/g2/thread/200/")
+	}
+}
+
+func TestPostOriginalDataNilValues(t *testing.T) {
+	st := testStore(t)
+	mustClean(t, st)
+	ctx := context.Background()
+
+	siteID, _ := st.UpsertSite(ctx, "4chan", "https://boards.4chan.org", "fourchan", true)
+	boardID, _ := st.UpsertBoard(ctx, siteID, "g", "Tech", false, true)
+	threadID, _, _ := st.UpsertThread(ctx, boardID, "100", "test thread", false, false, false, 0)
+
+	// Post without the new fields (zero values)
+	posts := []*adapter.Post{
+		{
+			NativeID: "100",
+			ThreadID: "100",
+			// No OriginalBoard, Website, OriginalThread, OriginalLink set
+		},
+	}
+
+	if err := st.UpsertThreadPosts(ctx, threadID, posts); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify NULL values are stored
+	var ob, website, otn, oal string
+	err := st.pool.QueryRow(ctx,
+		`SELECT original_board, website, original_thread_number, original_attachment_link
+		 FROM posts WHERE thread_id=$1 AND post_native_id='100'`, threadID).
+		Scan(&ob, &website, &otn, &oal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob != "" {
+		t.Errorf("expected NULL original_board, got %q", ob)
+	}
+	if website != "" {
+		t.Errorf("expected NULL website, got %q", website)
+	}
+	if otn != "" {
+		t.Errorf("expected NULL original_thread_number, got %q", otn)
+	}
+	if oal != "" {
+		t.Errorf("expected NULL original_attachment_link, got %q", oal)
+	}
+}
+
 // TestBlobCrossSiteDedup verifies platform-provided hashes bind file rows to
 // existing blobs across sites before any bytes are downloaded.
 func TestBlobCrossSiteDedup(t *testing.T) {
