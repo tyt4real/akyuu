@@ -46,23 +46,23 @@ type Thread struct {
 
 // Post mirrors a post row (the embed worker's selection target).
 type Post struct {
-	ID                int64
-	ThreadID          int64
-	NativeID          string
-	Timestamp         *time.Time
-	AuthorName        string
-	Tripcode          string
-	Capcode           string
-	PosterID          string
-	CommentParsed     string
-	Sage              bool
-	Country           string
-	Flag              string
-	PendingEmbedding  bool
-	OriginalBoard     string    // original board name where the post came from
-	Website           string    // website/source it came from
-	OriginalThread    string    // original thread number from the source
-	OriginalLink      string    // original link to the attachment
+	ID               int64
+	ThreadID         int64
+	NativeID         string
+	Timestamp        *time.Time
+	AuthorName       string
+	Tripcode         string
+	Capcode          string
+	PosterID         string
+	CommentParsed    string
+	Sage             bool
+	Country          string
+	Flag             string
+	PendingEmbedding bool
+	OriginalBoard    string // original board name where the post came from
+	Website          string // website/source it came from
+	OriginalThread   string // original thread number from the source
+	OriginalLink     string // original link to the attachment
 }
 
 // Job mirrors the jobs table.
@@ -102,12 +102,12 @@ type Tag struct {
 
 // TagAttachment links a tag to a post attachment.
 type TagAttachment struct {
-	TagID   int64
-	PostID  int64
+	TagID  int64
+	PostID int64
 }
 
 // TagThread links a tag to a thread.
 type TagThread struct {
-	TagID   int64
+	TagID    int64
 	ThreadID int64
 }

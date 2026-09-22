@@ -31,6 +31,7 @@ func (f *fakeAdapter) FetchThread(context.Context, string, string) (*adapter.Thr
 	return f.thread, f.threadErr
 }
 func (f *fakeAdapter) ParsePost([]byte) (*adapter.Post, error) { return nil, nil }
+func (f *fakeAdapter) CatalogURL(board string) string          { return "https://example.com/" + board + "/" }
 
 // fakePaginatedAdapter adds a paginated catalog and board listing on top of
 // fakeAdapter, for archive-site tests.

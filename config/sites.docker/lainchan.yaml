@@ -1,0 +1,18 @@
+# Lainchan — LynxChan platform, native JSON API (SFW boards only)
+name: lainchan
+base_url: https://lainchan.org
+platform: lynxchan
+api_available: true
+poll_interval: 60s
+rate_limit_per_sec: 2
+max_concurrent_requests: 1
+boards:
+  - code: r
+    title: Random
+    nsfw: false
+  - code: tech
+    title: Technology
+    nsfw: false
+  - code: q
+    title: Questions
+    nsfw: false

@@ -18,6 +18,6 @@ CREATE TABLE IF NOT EXISTS taggings (
 -- Tag thread links: many-to-many between tags and threads.
 CREATE TABLE IF NOT EXISTS taggings_threads (
     tag_id     BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-    thread_id BIG BIGINT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    thread_id  BIGINT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
     PRIMARY KEY (tag_id, thread_id)
 );

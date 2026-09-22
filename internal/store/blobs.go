@@ -17,7 +17,7 @@ type Blob struct {
 	ThumbStoragePath string
 	PlatformMD5      string
 	PlatformSHA1     string
-	PlatformPHASH    string    // perceptual hash (pHash/dHash) for cross-board meme lineage
+	PlatformPHASH    string // perceptual hash (pHash/dHash) for cross-board meme lineage
 	FirstSeenPostID  int64
 	RefCount         int
 }
@@ -30,7 +30,7 @@ func (s *Store) GetBlobByHash(ctx context.Context, hash string) (*Blob, error) {
 	row := s.pool.QueryRow(ctx, `
 		SELECT file_hash, coalesce(mime_type,''), size_bytes, coalesce(storage_path,''),
 		       coalesce(thumb_storage_path,''), coalesce(platform_md5,''), coalesce(platform_sha1,''),
-		       first_seen_post_id, ref_count
+		       coalesce(platform_phash,''), first_seen_post_id, ref_count
 		FROM blobs WHERE file_hash=$1`, hash)
 	return scanBlob(row)
 }
@@ -44,7 +44,7 @@ func (s *Store) GetBlobByPlatformHash(ctx context.Context, md5, sha1 string) (*B
 	row := s.pool.QueryRow(ctx, `
 		SELECT file_hash, coalesce(mime_type,''), size_bytes, coalesce(storage_path,''),
 		       coalesce(thumb_storage_path,''), coalesce(platform_md5,''), coalesce(platform_sha1,''),
-		       first_seen_post_id, ref_count
+		       coalesce(platform_phash,''), first_seen_post_id, ref_count
 		FROM blobs
 		WHERE ($1 <> '' AND platform_md5 = $1)
 		   OR ($2 <> '' AND platform_sha1 = $2)
@@ -59,7 +59,7 @@ func (s *Store) GetBlobByPlatformHash(ctx context.Context, md5, sha1 string) (*B
 func scanBlob(r rowScanner) (*Blob, error) {
 	var b Blob
 	if err := r.Scan(&b.FileHash, &b.MimeType, &b.SizeBytes, &b.StoragePath,
-		&b.ThumbStoragePath, &b.PlatformMD5, &b.PlatformSHA1, &b.FirstSeenPostID, &b.RefCount); err != nil {
+		&b.ThumbStoragePath, &b.PlatformMD5, &b.PlatformSHA1, &b.PlatformPHASH, &b.FirstSeenPostID, &b.RefCount); err != nil {
 		return nil, err
 	}
 	return &b, nil
@@ -88,17 +88,18 @@ func (s *Store) RecordDownloadedFile(ctx context.Context, fileID int64, b *Blob,
 	inc := downloadedFull && !alreadyFull
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO blobs (file_hash, mime_type, size_bytes, storage_path,
-		                   platform_md5, platform_sha1, first_seen_post_id, ref_count)
-		VALUES ($1, $2, $3, NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,0), 1)
+		                   platform_md5, platform_sha1, platform_phash, first_seen_post_id, ref_count)
+		VALUES ($1, $2, $3, NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,''), NULLIF($8,0), 1)
 		ON CONFLICT (file_hash) DO UPDATE
 			SET mime_type   = COALESCE(EXCLUDED.mime_type, blobs.mime_type),
 			    size_bytes  = GREATEST(COALESCE(EXCLUDED.size_bytes,0), COALESCE(blobs.size_bytes,0)),
 			    storage_path = COALESCE(EXCLUDED.storage_path, blobs.storage_path),
 			    platform_md5  = COALESCE(EXCLUDED.platform_md5, blobs.platform_md5),
 			    platform_sha1 = COALESCE(EXCLUDED.platform_sha1, blobs.platform_sha1),
-			    ref_count = blobs.ref_count + CASE WHEN $8 THEN 1 ELSE 0 END`,
+			    platform_phash = COALESCE(EXCLUDED.platform_phash, blobs.platform_phash),
+			    ref_count = blobs.ref_count + CASE WHEN $9 THEN 1 ELSE 0 END`,
 		b.FileHash, b.MimeType, b.SizeBytes, b.StoragePath,
-		b.PlatformMD5, b.PlatformSHA1, b.FirstSeenPostID, inc); err != nil {
+		b.PlatformMD5, b.PlatformSHA1, b.PlatformPHASH, b.FirstSeenPostID, inc); err != nil {
 		return fmt.Errorf("store: upsert blob %s: %w", b.FileHash, err)
 	}
 
@@ -238,7 +239,7 @@ func (s *Store) BlobByPHASH(ctx context.Context, hash string, algo string) ([]*B
 
 // SetBlobPHASH sets the perceptual hash on a blob.
 func (s *Store) SetBlobPHASH(ctx context.Context, hash string, algo string) error {
-	_, err := s.pool.Exec(ctx,`
+	_, err := s.pool.Exec(ctx, `
 		UPDATE blobs SET platform_phash = $1
 		WHERE platform_phash IS DISTINCT FROM $1`, hash)
 	if err != nil {

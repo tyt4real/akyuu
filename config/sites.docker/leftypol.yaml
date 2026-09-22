@@ -1,0 +1,15 @@
+# Leftypol — LynxChan platform, native JSON API (SFW boards only)
+name: leftypol
+base_url: https://leftypol.org
+platform: lynxchan
+api_available: true
+poll_interval: 90s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: tech
+    title: Technology
+    nsfw: false
+  - code: meta
+    title: Meta
+    nsfw: false

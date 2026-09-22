@@ -52,6 +52,11 @@ func New(baseURL, userAgent string, transport http.RoundTripper, logger *slog.Lo
 // PlatformName implements Adapter.
 func (a *Adapter) PlatformName() string { return "desuarchive" }
 
+// CatalogURL implements Adapter.
+func (a *Adapter) CatalogURL(board string) string {
+	return a.client.BaseURL() + "/_/api/chan/index/?board=" + board + "&page=1"
+}
+
 // --- FoolFuuka /_/api/chan/ wire types ---
 
 // chanThread is the thread endpoint response: { "<threadnum>": {op, posts} }.

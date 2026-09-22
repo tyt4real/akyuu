@@ -46,11 +46,13 @@ const (
 // FetchCatalog returns the list of threads currently on a board.
 // FetchThread returns the full thread (OP + every reply) for a board.
 // ParsePost parses a single raw post (JSON or an HTML fragment) into a Post.
+// CatalogURL returns the URL for a board's catalog page (used for raw capture).
 type Adapter interface {
 	PlatformName() string
 	FetchCatalog(ctx context.Context, board string) ([]ThreadSummary, error)
 	FetchThread(ctx context.Context, board string, threadID string) (*Thread, error)
 	ParsePost(raw []byte) (*Post, error)
+	CatalogURL(board string) string
 }
 
 // BoardLister is implemented by adapters that can enumerate their boards at

@@ -132,10 +132,10 @@ func (s *Store) SearchEmbeddings(ctx context.Context, query []float32, modelVers
 		      )
 			  AND ($9::tsvector IS NULL OR p.comment_tsv @@ plainto_tsquery($9::text))
 		ORDER BY pe.embedding <=> $1::vector
-		LIMIT $9`,
+		LIMIT $10`,
 		formatVector(query), modelVersion,
 		nullIfEmpty(opts.Site), nullIfEmpty(opts.Board),
-		opts.ThreadID, opts.DateFrom, opts.DateTo, opts.HasAttachment, opts.FTSQuery, limit)
+		opts.ThreadID, opts.DateFrom, opts.DateTo, opts.HasAttachment, nullIfEmpty(opts.FTSQuery), limit)
 	if err != nil {
 		return nil, fmt.Errorf("store: search embeddings: %w", err)
 	}

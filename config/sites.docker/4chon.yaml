@@ -1,0 +1,15 @@
+# 4chon.me — vichan fork, server-rendered HTML (SFW boards only)
+name: 4chon
+base_url: https://4chon.me
+platform: vichan
+api_available: false
+poll_interval: 60s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: new
+    title: News
+    nsfw: false
+  - code: lounge
+    title: Lounge
+    nsfw: false

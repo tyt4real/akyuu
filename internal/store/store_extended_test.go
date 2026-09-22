@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -431,18 +432,18 @@ func TestPostOriginalData(t *testing.T) {
 
 	posts := []*adapter.Post{
 		{
-			NativeID:      "100",
-			ThreadID:      "100",
-			Timestamp:     1000,
-			CommentHTML:   "original post",
-			OriginalBoard: "g",
-			Website:       "4chan",
+			NativeID:       "100",
+			ThreadID:       "100",
+			Timestamp:      1000,
+			CommentHTML:    "original post",
+			OriginalBoard:  "g",
+			Website:        "4chan",
 			OriginalThread: "100",
-			OriginalLink:  "https://i.4cdn.org/g/thread/100/",
+			OriginalLink:   "https://i.4cdn.org/g/thread/100/",
 			Files: []*adapter.File{
 				{
-					FullURL: "https://i.4cdn.org/g/100.jpg",
-					ThumbURL:      "https://i.4cdn.org/g/100s.jpg",
+					FullURL:  "https://i.4cdn.org/g/100.jpg",
+					ThumbURL: "https://i.4cdn.org/g/100s.jpg",
 				},
 			},
 		},
@@ -486,14 +487,14 @@ func TestPostOriginalDataIdempotentUpdate(t *testing.T) {
 
 	posts := []*adapter.Post{
 		{
-			NativeID:      "100",
-			ThreadID:      "100",
-			Timestamp:     1000,
-			CommentHTML:   "original post",
-			OriginalBoard: "g",
-			Website:       "4chan",
+			NativeID:       "100",
+			ThreadID:       "100",
+			Timestamp:      1000,
+			CommentHTML:    "original post",
+			OriginalBoard:  "g",
+			Website:        "4chan",
 			OriginalThread: "100",
-			OriginalLink:  "https://i.4cdn.org/g/thread/100/",
+			OriginalLink:   "https://i.4cdn.org/g/thread/100/",
 		},
 	}
 
@@ -570,7 +571,7 @@ func TestPostOriginalDataNilValues(t *testing.T) {
 	}
 
 	// Verify NULL values are stored
-	var ob, website, otn, oal string
+	var ob, website, otn, oal sql.NullString
 	err := st.pool.QueryRow(ctx,
 		`SELECT original_board, website, original_thread_number, original_attachment_link
 		 FROM posts WHERE thread_id=$1 AND post_native_id='100'`, threadID).
@@ -578,17 +579,17 @@ func TestPostOriginalDataNilValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ob != "" {
-		t.Errorf("expected NULL original_board, got %q", ob)
+	if ob.Valid {
+		t.Errorf("expected NULL original_board, got %q", ob.String)
 	}
-	if website != "" {
-		t.Errorf("expected NULL website, got %q", website)
+	if website.Valid {
+		t.Errorf("expected NULL website, got %q", website.String)
 	}
-	if otn != "" {
-		t.Errorf("expected NULL original_thread_number, got %q", otn)
+	if otn.Valid {
+		t.Errorf("expected NULL original_thread_number, got %q", otn.String)
 	}
-	if oal != "" {
-		t.Errorf("expected NULL original_attachment_link, got %q", oal)
+	if oal.Valid {
+		t.Errorf("expected NULL original_attachment_link, got %q", oal.String)
 	}
 }
 

@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: akyuu
+      POSTGRES_PASSWORD: akyuu
+      POSTGRES_DB: akyuu
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U akyuu -d akyuu"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  archiver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    restart: unless-stopped
+    user: "0:0"
+
+  cirno:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["cirno", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    restart: unless-stopped
+    user: "0:0"
+
+  sunny-milk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sunny-milk", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    restart: unless-stopped
+    user: "0:0"
+
+  luna-child:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["luna-child", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    restart: unless-stopped
+    user: "0:0"
+
+  star-sapphire:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["star-sapphire", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    restart: unless-stopped
+    user: "0:0"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/usr/local/bin/api"]
+    command: ["-listen", ":8080", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

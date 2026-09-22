@@ -9,17 +9,236 @@ poll_interval: 60s
 rate_limit_per_sec: 1
 max_concurrent_requests: 1
 boards:
+  # SFW boards (worksafe = 1)
   - code: g
     title: Technology
     nsfw: false
     poll_interval: 30s
+  - code: a
+    title: Anime & Manga
+    nsfw: false
+  - code: adv
+    title: Advice
+    nsfw: false
+  - code: an
+    title: Animals & Nature
+    nsfw: false
+  - code: biz
+    title: Business & Finance
+    nsfw: false
+  - code: c
+    title: Anime/Cute
+    nsfw: false
+  - code: cgl
+    title: Cosplay & EGL
+    nsfw: false
+  - code: ck
+    title: Food & Cooking
+    nsfw: false
+  - code: cm
+    title: Cute/Male
+    nsfw: false
+  - code: co
+    title: Comics & Cartoons
+    nsfw: false
   - code: diy
     title: Do-It-Yourself
     nsfw: false
     download_full: true
-  - code: t
+  - code: fa
+    title: Fashion
+    nsfw: false
+  - code: fit
+    title: Fitness
+    nsfw: false
+  - code: gd
+    title: Graphic Design
+    nsfw: false
+  - code: his
+    title: History & Humanities
+    nsfw: false
+  - code: int
+    title: International
+    nsfw: false
+  - code: jp
+    title: Otaku Culture
+    nsfw: false
+  - code: k
+    title: Weapons
+    nsfw: false
+  - code: lgbt
+    title: LGBT
+    nsfw: false
+  - code: lit
+    title: Literature
+    nsfw: false
+  - code: m
+    title: Mecha
+    nsfw: false
+  - code: mlp
+    title: Pony
+    nsfw: false
+  - code: mu
+    title: Music
+    nsfw: false
+  - code: n
+    title: Transportation
+    nsfw: false
+  - code: news
+    title: Current News
+    nsfw: false
+  - code: o
+    title: Auto
+    nsfw: false
+  - code: out
+    title: Outdoors
+    nsfw: false
+  - code: p
+    title: Photography
+    nsfw: false
+  - code: po
+    title: Papercraft & Origami
+    nsfw: false
+  - code: pw
+    title: Professional Wrestling
+    nsfw: false
+  - code: qst
+    title: Quests
+    nsfw: false
+  - code: sci
+    title: Science & Math
+    nsfw: false
+  - code: sp
+    title: Sports
+    nsfw: false
+  - code: tg
+    title: Traditional Games
+    nsfw: false
+  - code: toy
     title: Toys
     nsfw: false
+  - code: trv
+    title: Travel
+    nsfw: false
+  - code: tv
+    title: Television & Film
+    nsfw: false
+  - code: v
+    title: Video Games
+    nsfw: false
+  - code: vg
+    title: Video Game Generals
+    nsfw: false
+  - code: vip
+    title: Very Important Posts
+    nsfw: false
+  - code: vm
+    title: Video Games/Multiplayer
+    nsfw: false
+  - code: vmg
+    title: Video Games/Mobile
+    nsfw: false
+  - code: vp
+    title: Pokémon
+    nsfw: false
+  - code: vr
+    title: Retro Games
+    nsfw: false
+  - code: vrpg
+    title: Video Games/RPG
+    nsfw: false
+  - code: vst
+    title: Video Games/Strategy
+    nsfw: false
+  - code: vt
+    title: Virtual YouTubers
+    nsfw: false
+  - code: w
+    title: Anime/Wallpapers
+    nsfw: false
+  - code: wsg
+    title: Worksafe GIF
+    nsfw: false
+  - code: wsr
+    title: Worksafe Requests
+    nsfw: false
+  - code: x
+    title: Paranormal
+    nsfw: false
+  - code: xs
+    title: Extreme Sports
+    nsfw: false
+
+  # NSFW boards (worksafe = 0)
   - code: b
     title: Random
+    nsfw: true
+  - code: bant
+    title: International/Random
+    nsfw: true
+  - code: aco
+    title: Adult Cartoons
+    nsfw: true
+  - code: d
+    title: Hentai/Alternative
+    nsfw: true
+  - code: e
+    title: Ecchi
+    nsfw: true
+  - code: f
+    title: Flash
+    nsfw: true
+  - code: gif
+    title: Adult GIF
+    nsfw: true
+  - code: h
+    title: Hentai
+    nsfw: true
+  - code: hc
+    title: Hardcore
+    nsfw: true
+  - code: hm
+    title: Handsome Men
+    nsfw: true
+  - code: hr
+    title: High Resolution
+    nsfw: true
+  - code: i
+    title: Oekaki
+    nsfw: true
+  - code: ic
+    title: Artwork/Critique
+    nsfw: true
+  - code: pol
+    title: Politically Incorrect
+    nsfw: true
+  - code: r
+    title: Adult Requests
+    nsfw: true
+  - code: r9k
+    title: ROBOT9001
+    nsfw: true
+  - code: s
+    title: Sexy Beautiful Women
+    nsfw: true
+  - code: s4s
+    title: Shit 4chan Says
+    nsfw: true
+  - code: soc
+    title: Cams & Meetups
+    nsfw: true
+  - code: t
+    title: Torrents
+    nsfw: true
+  - code: trash
+    title: Off-Topic
+    nsfw: true
+  - code: u
+    title: Yuri
+    nsfw: true
+  - code: wg
+    title: Wallpapers/General
+    nsfw: true
+  - code: y
+    title: Yaoi
     nsfw: true

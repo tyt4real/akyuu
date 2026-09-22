@@ -49,6 +49,19 @@ func (s *Scheduler) enqueueWork(ctx context.Context, sc *config.SiteConfig, site
 			}
 		}
 
+		// Raw capture job - captures the raw HTTP response for archival integrity.
+		// Runs before catalog/thread parsing so we have the exact bytes.
+		if s.cfg.Scheduler.CaptureRaw {
+			if n, _ := s.store.PendingJobCount(ctx, siteID, store.JobRawCapture, &board.ID, nil); n == 0 {
+				payload := map[string]any{
+					"retention_days": s.cfg.Scheduler.RawRetentionDays,
+				}
+				if _, err := s.store.EnqueueJob(ctx, siteID, &board.ID, nil, store.JobRawCapture, payload, now); err != nil {
+					lg.Warn("enqueue raw capture job", "board", bc.Code, "err", err)
+				}
+			}
+		}
+
 		// Stale threads (silently unreachable, never explicitly 404'd).
 		stale, err := s.store.ListStaleThreads(ctx, board.ID, s.cfg.Scheduler.ThreadStaleAfter.D())
 		if err != nil {

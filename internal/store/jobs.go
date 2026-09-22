@@ -11,10 +11,22 @@ import (
 
 // Job kinds.
 const (
-	JobCatalog  = "catalog"
-	JobThread   = "thread"
-	JobDownload = "download"
-	JobBackfill = "backfill"
+	JobCatalog      = "catalog"
+	JobThread       = "thread"
+	JobDownload     = "download"
+	JobBackfill     = "backfill"
+	JobRawCapture   = "raw_capture"
+	JobOCR          = "ocr"
+	JobCLIP         = "clip"
+	JobWhisper      = "whisper"
+	JobComputePHASH = "compute_phash"
+	JobBuildLineage = "build_lineage"
+	JobContinuity   = "continuity"
+	JobCrosspost    = "crosspost"
+	JobTrends       = "trends"
+	JobSummarize    = "summarize"
+	JobAnomaly      = "anomaly"
+	JobReprocess    = "reprocess"
 )
 
 // EnqueueJob inserts a job if no identical active job exists (guarded by a

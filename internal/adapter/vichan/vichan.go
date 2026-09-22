@@ -49,6 +49,11 @@ func New(baseURL, userAgent string, transport http.RoundTripper, logger *slog.Lo
 // PlatformName implements Adapter.
 func (a *Adapter) PlatformName() string { return "vichan" }
 
+// CatalogURL implements Adapter.
+func (a *Adapter) CatalogURL(board string) string {
+	return a.client.BaseURL() + "/" + board + "/"
+}
+
 var (
 	replyCountRe = regexp.MustCompile(`(?i)(\d+)\s+(?:replies?|posts?|respuestas?|responders?)`)
 	fileCountRe  = regexp.MustCompile(`(?i)(\d+)\s+(?:images?|files?|imágenes|imagenes|imagenes?)`)

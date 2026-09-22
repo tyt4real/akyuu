@@ -1,6 +1,7 @@
 // Command archiver runs the multi-site imageboard archiver: it loads the
-// global config plus per-site YAML definitions, syncs the site/board catalog
-// into Postgres, applies migrations, and starts the scheduler.
+// global config, discovers built-in site modules, loads optional per-site YAML
+// definitions (for custom sites), syncs the site/board catalog into Postgres,
+// applies migrations, and starts the scheduler.
 package main
 
 import (
@@ -11,10 +12,21 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "akyuu/internal/site/4chan"
+	_ "akyuu/internal/site/4chon"
+	_ "akyuu/internal/site/alogs"
+	_ "akyuu/internal/site/desuarchive"
+	_ "akyuu/internal/site/lainchan"
+	_ "akyuu/internal/site/leftypol"
+	_ "akyuu/internal/site/sushigirl"
+	_ "akyuu/internal/site/wired7"
+
 	"akyuu/internal/config"
 	"akyuu/internal/downloader"
 	"akyuu/internal/embedder"
 	"akyuu/internal/scheduler"
+	"akyuu/internal/siteadapters"
+	"akyuu/internal/siteregistry"
 	"akyuu/internal/store"
 )
 
@@ -44,15 +56,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	sites, err := config.LoadSites(cfg.SitesDir)
+	// Load built-in site modules from the registry.
+	builtinSites := siteadapters.ToConfigs(siteregistry.All())
+
+	// Load custom sites from YAML files (if any).
+	customSites, err := config.LoadSites(cfg.SitesDir)
 	if err != nil {
-		logger.Error("load site configs", "err", err)
+		logger.Error("load custom site configs", "err", err)
 		os.Exit(1)
 	}
-	if len(sites) == 0 {
-		logger.Warn("no site configs found", "dir", cfg.SitesDir)
+
+	// Merge: built-in sites first, custom sites can override by name.
+	allSites := mergeSites(builtinSites, customSites)
+	if len(allSites) == 0 {
+		logger.Warn("no site configs found (built-in or custom)")
 	}
-	syncSites(ctx, st, sites, logger)
+	syncSites(ctx, st, allSites, logger)
 
 	checker, err := downloader.NewBlocklistChecker(
 		cfg.Safety.HashListPath, cfg.Safety.APIURL, cfg.Safety.APIToken, logger)
@@ -61,7 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sched := scheduler.New(st, cfg, sites, checker, logger)
+	sched := scheduler.New(st, cfg, allSites, checker, logger)
 	if cfg.Embeddings.Enabled {
 		if err := startEmbedWorker(ctx, st, cfg, logger); err != nil {
 			logger.Error("start embed worker", "err", err)
@@ -70,9 +89,26 @@ func main() {
 	} else {
 		logger.Info("embeddings disabled; semantic search is off")
 	}
-	logger.Info("archiver starting", "sites", len(sites))
+	logger.Info("archiver starting", "builtin_sites", len(builtinSites), "custom_sites", len(customSites), "total", len(allSites))
 	sched.Run(ctx)
 	logger.Info("archiver stopped")
+}
+
+// mergeSites merges built-in and custom site configs. Custom sites override
+// built-in sites with the same name.
+func mergeSites(builtin, custom []*config.SiteConfig) []*config.SiteConfig {
+	byName := make(map[string]*config.SiteConfig)
+	for _, s := range builtin {
+		byName[s.Name] = s
+	}
+	for _, s := range custom {
+		byName[s.Name] = s
+	}
+	out := make([]*config.SiteConfig, 0, len(byName))
+	for _, s := range byName {
+		out = append(out, s)
+	}
+	return out
 }
 
 // startEmbedWorker loads the ONNX model and runs the embedding worker in the

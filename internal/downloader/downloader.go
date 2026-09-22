@@ -107,6 +107,18 @@ func (d *Downloader) DownloadFull(ctx context.Context, pd *store.PendingDownload
 		}
 	}
 
+	// Compute perceptual hash for image files
+	var phash string
+	if isImageMime(mimeType) {
+		data, err := os.ReadFile(absPath)
+		if err == nil {
+			phash, err = ComputePHASH(data, d.logger)
+			if err != nil {
+				d.logger.Debug("downloader: pHash computation failed", "err", err)
+			}
+		}
+	}
+
 	return d.store.RecordDownloadedFile(ctx, pd.FileID, &store.Blob{
 		FileHash:        sha,
 		MimeType:        mimeType,
@@ -114,6 +126,7 @@ func (d *Downloader) DownloadFull(ctx context.Context, pd *store.PendingDownload
 		StoragePath:     d.storage.Rel(absPath),
 		PlatformMD5:     h.MD5Hex(),
 		PlatformSHA1:    pd.PlatformSHA1,
+		PlatformPHASH:   phash,
 		FirstSeenPostID: pd.PostID,
 	}, true, false)
 }
@@ -295,4 +308,8 @@ func hashBytes(b []byte) string {
 	h := newHashes()
 	h.multi().Write(b)
 	return h.SHA256Hex()
+}
+
+func isImageMime(mime string) bool {
+	return len(mime) > 6 && mime[:6] == "image/"
 }

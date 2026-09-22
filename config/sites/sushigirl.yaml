@@ -1,0 +1,45 @@
+# Sushigirl.cafe — vichan fork, server-rendered HTML (see docs/sushigirl.cafe.md).
+name: sushigirl
+base_url: https://sushigirl.cafe
+platform: vichan
+api_available: false
+poll_interval: 60s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: lounge
+    title: Lounge
+    nsfw: false
+  - code: kawaii
+    title: Kawaii
+    nsfw: false
+  - code: kitchen
+    title: Kitchen
+    nsfw: false
+  - code: tunes
+    title: Tunes
+    nsfw: false
+  - code: culture
+    title: Culture
+    nsfw: false
+  - code: silicon
+    title: Silicon
+    nsfw: false
+  - code: otaku
+    title: Otaku
+    nsfw: false
+  - code: hell
+    title: Hell
+    nsfw: true
+  - code: yakuza
+    title: Yakuza
+    nsfw: false
+  - code: arcade
+    title: Arcade
+    nsfw: false
+  - code: chat
+    title: Chat
+    nsfw: false
+  - code: kaitensushi
+    title: Fresh Posts
+    nsfw: false

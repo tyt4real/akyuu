@@ -19,3 +19,8 @@ type Embedder interface {
 	// alongside every vector so search never mixes models.
 	ModelVersion() string
 }
+
+// Closer is an optional interface for embedders that need cleanup.
+type Closer interface {
+	Close() error
+}

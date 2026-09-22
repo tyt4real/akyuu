@@ -38,6 +38,11 @@ func New(base, userAgent string, transport http.RoundTripper) *Client {
 	}
 }
 
+// BaseURL returns the base URL of the client.
+func (c *Client) BaseURL() string {
+	return c.base
+}
+
 // Resolve joins a (possibly relative) path with the base URL.
 func (c *Client) Resolve(path string) string {
 	if path == "" {

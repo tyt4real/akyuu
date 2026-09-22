@@ -6,8 +6,13 @@ package scheduler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 
@@ -199,8 +204,121 @@ func (s *Scheduler) runJob(ctx context.Context, sc *config.SiteConfig, siteID in
 		s.runDownload(ctx, dl, job, jlg)
 	case store.JobBackfill:
 		s.runBackfill(ctx, sc, dl, job, jlg)
+	case store.JobRawCapture:
+		s.runRawCapture(ctx, sc, siteID, adapt, job, jlg)
 	default:
 		jlg.Warn("unknown job kind; marking failed", "kind", job.Kind)
 		s.store.FailJob(ctx, job.ID, "unknown job kind", time.Minute)
 	}
+}
+
+// runRawCapture fetches the board catalog page and stores the raw HTTP response
+// for archival integrity and reprocessing capability.
+func (s *Scheduler) runRawCapture(ctx context.Context, sc *config.SiteConfig, siteID int64, adapt adapter.Adapter, job *store.Job, lg *slog.Logger) {
+	boardID := job.BoardID
+	if boardID == nil {
+		lg.Error("raw capture job missing board_id")
+		s.store.FailJob(ctx, job.ID, "missing board_id", time.Minute)
+		return
+	}
+
+	board, err := s.store.GetBoardByID(ctx, *boardID)
+	if err != nil {
+		lg.Error("board not found", "board_id", *boardID, "err", err)
+		s.store.FailJob(ctx, job.ID, "board not found", time.Minute)
+		return
+	}
+
+	// Build the catalog URL for this board
+	catalogURL := adapt.CatalogURL(board.Code)
+	if catalogURL == "" {
+		lg.Warn("adapter does not provide catalog URL", "board", board.Code)
+		s.store.CompleteJob(ctx, job.ID)
+		return
+	}
+
+	// Extract payload
+	var retentionDays int
+	payload := make(map[string]any)
+	if len(job.Payload) > 0 {
+		if err := json.Unmarshal(job.Payload, &payload); err == nil {
+			if rd, ok := payload["retention_days"].(float64); ok {
+				retentionDays = int(rd)
+			}
+		}
+	}
+	// Use retentionDays for the TTL (could be used for cleanup job)
+	_ = retentionDays
+
+	// Fetch the catalog page with timing
+	start := time.Now()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, catalogURL, nil)
+	if err != nil {
+		lg.Error("raw capture: build request", "url", catalogURL, "err", err)
+		s.store.FailJob(ctx, job.ID, err.Error(), time.Minute)
+		return
+	}
+	req.Header.Set("User-Agent", "akyuu/0.1 (private archive)")
+
+	// Use the site's transport for rate limiting
+	transport := newSiteTransport(sc)
+	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
+
+	resp, err := client.Do(req)
+	fetchDuration := time.Since(start).Milliseconds()
+	if err != nil {
+		lg.Error("raw capture: fetch failed", "url", catalogURL, "err", err)
+		s.store.FailJob(ctx, job.ID, err.Error(), time.Minute)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		lg.Error("raw capture: read body", "url", catalogURL, "err", err)
+		s.store.FailJob(ctx, job.ID, err.Error(), time.Minute)
+		return
+	}
+
+	// Compute SHA256 of body
+	hash := sha256.Sum256(body)
+	bodySHA256 := hex.EncodeToString(hash[:])
+
+	// Extract request headers (for replay)
+	reqHeaders := make(map[string][]string)
+	for k, v := range req.Header {
+		reqHeaders[k] = v
+	}
+	reqHeadersJSON, _ := json.Marshal(reqHeaders)
+
+	// Extract response headers
+	respHeaders := make(map[string][]string)
+	for k, v := range resp.Header {
+		respHeaders[k] = v
+	}
+	respHeadersJSON, _ := json.Marshal(respHeaders)
+
+	// Store raw capture
+	err = s.store.Exec(ctx, `
+		INSERT INTO raw_captures (
+			site_id, board_id, url, method, status_code,
+			request_headers, response_headers, body, body_sha256,
+			content_type, content_length, fetch_duration_ms,
+			parser_version
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		ON CONFLICT DO NOTHING`,
+		siteID, board.ID, catalogURL, "GET", resp.StatusCode,
+		reqHeadersJSON, respHeadersJSON, body, bodySHA256,
+		resp.Header.Get("Content-Type"), len(body), fetchDuration,
+		"v1",
+	)
+	if err != nil {
+		lg.Error("raw capture: store failed", "err", err)
+		s.store.FailJob(ctx, job.ID, err.Error(), time.Minute)
+		return
+	}
+
+	lg.Info("raw capture stored", "url", catalogURL, "bytes", len(body), "sha256", bodySHA256[:16]+"...")
+	s.store.CompleteJob(ctx, job.ID)
 }

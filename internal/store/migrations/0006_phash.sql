@@ -5,8 +5,8 @@
 -- These enable "find me similar images" across different boards/sites,
 -- even when images are recompressed, resized, or have watermarks added.
 CREATE TABLE IF NOT EXISTS platform_phash (
-    blob_id BIGINT NOT NULL REFERENCES blobs(id) ON DELETE CASCADE,
-    hash    TEXT NOT NULL,             -- perceptual hash hex string (e.g. 64 hex chars for pHash)
+    blob_id TEXT NOT NULL REFERENCES blobs(file_hash) ON DELETE CASCADE,
+    hash    TEXT NOT NULL,             -- perceptual hash hex string (e.g. 16 hex chars for 64-bit pHash)
     algo    TEXT NOT NULL,           -- "phash" or "dhash"
     width   INTEGER,                 -- image width at time of hash computation
     height  INTEGER,                 -- image height at time of hash computation

@@ -1,0 +1,15 @@
+# Wired-7 — vichan fork, server-rendered HTML, Spanish UI (SFW boards only)
+name: wired-7
+base_url: https://wired-7.org
+platform: vichan
+api_available: false
+poll_interval: 60s
+rate_limit_per_sec: 1
+max_concurrent_requests: 1
+boards:
+  - code: a
+    title: Anime y manga
+    nsfw: false
+  - code: v
+    title: Videojuegos
+    nsfw: false

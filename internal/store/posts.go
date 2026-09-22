@@ -51,7 +51,7 @@ func upsertPost(ctx context.Context, tx pgx.Tx, threadID int64, p *adapter.Post)
 		                   original_board, website, original_thread_number, original_attachment_link,
 		                   pending_embedding)
 		VALUES ($1, $2, $3, NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,''),
-		        $8, $9, $10, NULLIF($11,''), NULLIF($12,''), NULLIF($13,''), NULLIF($14,''), NULLIF($15,''), TRUE)
+		        $8, $9, $10, NULLIF($11,''), NULLIF($12,''), NULLIF($13,''), NULLIF($14,''), NULLIF($15,''), NULLIF($16,''), TRUE)
 		ON CONFLICT (thread_id, post_native_id) DO UPDATE
 			SET "timestamp" = EXCLUDED."timestamp",
 			    author_name = EXCLUDED.author_name,

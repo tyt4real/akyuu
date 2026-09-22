@@ -23,12 +23,12 @@ type HealthChecker interface {
 
 // Server is the HTTP handler set for the search API.
 type Server struct {
-	embed    embedder.Embedder
-	search   Searcher
-	health   HealthChecker
-	logger   *slog.Logger
-	now      func() time.Time
-	store    *store.Store
+	embed  embedder.Embedder
+	search Searcher
+	health HealthChecker
+	logger *slog.Logger
+	now    func() time.Time
+	store  *store.Store
 }
 
 // New builds a Server. logger may be nil.
@@ -100,29 +100,29 @@ type SearchResponse struct {
 
 // PostResponse is the response for a single post via GET /posts.
 type PostResponse struct {
-	ID               int64      `json:"id"`
-	ThreadID         int64      `json:"thread_id"`
-	NativeID         string     `json:"native_id"`
-	Timestamp        *time.Time `json:"timestamp,omitempty"`
-	AuthorName       string     `json:"author_name,omitempty"`
-	Tripcode         string     `json:"tripcode,omitempty"`
-	Capcode          string     `json:"capcode,omitempty"`
-	PosterID         string     `json:"poster_id,omitempty"`
-	Country          string     `json:"country,omitempty"`
-	Flag             string     `json:"flag,omitempty"`
-	Sage             bool       `json:"sage"`
-	CommentRaw       string     `json:"comment_raw,omitempty"`
-	CommentHTML      string     `json:"comment_html,omitempty"`
-	OriginalBoard    string     `json:"original_board,omitempty"`
-	Website          string     `json:"website,omitempty"`
-	OriginalThread   string     `json:"original_thread,omitempty"`
-	OriginalLink     string     `json:"original_link,omitempty"`
-	Subject          string     `json:"subject,omitempty"`
+	ID             int64      `json:"id"`
+	ThreadID       int64      `json:"thread_id"`
+	NativeID       string     `json:"native_id"`
+	Timestamp      *time.Time `json:"timestamp,omitempty"`
+	AuthorName     string     `json:"author_name,omitempty"`
+	Tripcode       string     `json:"tripcode,omitempty"`
+	Capcode        string     `json:"capcode,omitempty"`
+	PosterID       string     `json:"poster_id,omitempty"`
+	Country        string     `json:"country,omitempty"`
+	Flag           string     `json:"flag,omitempty"`
+	Sage           bool       `json:"sage"`
+	CommentRaw     string     `json:"comment_raw,omitempty"`
+	CommentHTML    string     `json:"comment_html,omitempty"`
+	OriginalBoard  string     `json:"original_board,omitempty"`
+	Website        string     `json:"website,omitempty"`
+	OriginalThread string     `json:"original_thread,omitempty"`
+	OriginalLink   string     `json:"original_link,omitempty"`
+	Subject        string     `json:"subject,omitempty"`
 }
 
 // PostsResponse wraps the hit list for GET /posts.
 type PostsResponse struct {
-	Count int        `json:"count"`
+	Count int             `json:"count"`
 	Posts []*PostResponse `json:"posts"`
 }
 
@@ -215,24 +215,24 @@ func (s *Server) handlePosts(w http.ResponseWriter, r *http.Request) {
 	var postsResp []*PostResponse
 	for _, p := range posts {
 		postsResp = append(postsResp, &PostResponse{
-			ID:               p.ID,
-			ThreadID:         p.ThreadID,
-			NativeID:         p.NativeID,
-			Timestamp:        p.Timestamp,
-			AuthorName:       p.AuthorName,
-			Tripcode:         p.Tripcode,
-			Capcode:          p.Capcode,
-			PosterID:         p.PosterID,
-			Country:          p.Country,
-			Flag:             p.Flag,
-			Sage:             p.PendingEmbedding,
-			CommentRaw:       p.CommentParsed,
-			CommentHTML:      "",
-			OriginalBoard:    p.OriginalBoard,
-			Website:          p.Website,
-			OriginalThread:   p.OriginalThread,
-			OriginalLink:     p.OriginalLink,
-			Subject:          "",
+			ID:             p.ID,
+			ThreadID:       p.ThreadID,
+			NativeID:       p.NativeID,
+			Timestamp:      p.Timestamp,
+			AuthorName:     p.AuthorName,
+			Tripcode:       p.Tripcode,
+			Capcode:        p.Capcode,
+			PosterID:       p.PosterID,
+			Country:        p.Country,
+			Flag:           p.Flag,
+			Sage:           p.PendingEmbedding,
+			CommentRaw:     p.CommentParsed,
+			CommentHTML:    "",
+			OriginalBoard:  p.OriginalBoard,
+			Website:        p.Website,
+			OriginalThread: p.OriginalThread,
+			OriginalLink:   p.OriginalLink,
+			Subject:        "",
 		})
 	}
 
@@ -291,33 +291,33 @@ func (s *Server) handleThreads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type threadResponse struct {
-		ID           int64      `json:"id"`
-		BoardID      int64      `json:"board_id"`
-		NativeID     string     `json:"native_id"`
-		Subject      string     `json:"subject,omitempty"`
-		Sticky       bool       `json:"sticky,omitempty"`
-		Locked       bool       `json:"locked,omitempty"`
-		Archived     bool       `json:"archived,omitempty"`
-		Status       string     `json:"status,omitempty"`
-		ReplyCount   int        `json:"reply_count,omitempty"`
-		FileCount    int        `json:"file_count,omitempty"`
-		LastSeenAt   *time.Time `json:"last_seen_at,omitempty"`
+		ID         int64      `json:"id"`
+		BoardID    int64      `json:"board_id"`
+		NativeID   string     `json:"native_id"`
+		Subject    string     `json:"subject,omitempty"`
+		Sticky     bool       `json:"sticky,omitempty"`
+		Locked     bool       `json:"locked,omitempty"`
+		Archived   bool       `json:"archived,omitempty"`
+		Status     string     `json:"status,omitempty"`
+		ReplyCount int        `json:"reply_count,omitempty"`
+		FileCount  int        `json:"file_count,omitempty"`
+		LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
 	}
 
 	var resp []threadResponse
 	for _, t := range threads {
 		resp = append(resp, threadResponse{
-			ID:           t.ID,
-			BoardID:      t.BoardID,
-			NativeID:     t.NativeID,
-			Subject:      t.Subject,
-			Sticky:       t.Sticky,
-			Locked:       t.Locked,
-			Archived:     t.Archived,
-			Status:       t.Status,
-			ReplyCount:   t.ReplyCount,
-			FileCount:    t.FileCount,
-			LastSeenAt:   t.LastSeenAt,
+			ID:         t.ID,
+			BoardID:    t.BoardID,
+			NativeID:   t.NativeID,
+			Subject:    t.Subject,
+			Sticky:     t.Sticky,
+			Locked:     t.Locked,
+			Archived:   t.Archived,
+			Status:     t.Status,
+			ReplyCount: t.ReplyCount,
+			FileCount:  t.FileCount,
+			LastSeenAt: t.LastSeenAt,
 		})
 	}
 

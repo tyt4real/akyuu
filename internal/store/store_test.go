@@ -30,9 +30,7 @@ func testStore(t *testing.T) *Store {
 // mustClean wipes tables between tests so ids stay predictable.
 func mustClean(t *testing.T, st *Store) {
 	t.Helper()
-	_, err := st.pool.Exec(context.Background(),
-		`TRUNCATE post_embeddings, files, post_quotes, posts, threads, boards, sites, blobs, jobs RESTART IDENTITY`)
-	if err != nil {
+	if err := st.ResetAll(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

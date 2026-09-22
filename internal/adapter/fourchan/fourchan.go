@@ -53,6 +53,11 @@ func New(baseURL, userAgent string, transport http.RoundTripper, logger *slog.Lo
 // PlatformName implements Adapter.
 func (a *Adapter) PlatformName() string { return "fourchan" }
 
+// CatalogURL implements Adapter.
+func (a *Adapter) CatalogURL(board string) string {
+	return a.client.BaseURL() + "/" + board + "/"
+}
+
 const fileHost = "https://i.4cdn.org"
 
 var (

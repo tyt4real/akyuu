@@ -43,6 +43,18 @@ type Config struct {
 	// model and the search API is unavailable.
 	Embeddings EmbeddingsConfig `yaml:"embeddings"`
 
+	// Multimodal configures OCR, CLIP, and Whisper workers for multimodal search.
+	Multimodal MultimodalConfig `yaml:"multimodal"`
+
+	// Lineage configures crosspost detection, meme clustering, thread continuity.
+	Lineage LineageConfig `yaml:"lineage"`
+
+	// Search configures saved search evaluation, alerts, and trend aggregation.
+	Search SearchConfig `yaml:"search"`
+
+	// Ambitious configures stylometric clustering and anomaly detection.
+	Ambitious AmbitiousConfig `yaml:"ambitious"`
+
 	SitesDir string `yaml:"sites_dir"`
 
 	LogLevel string `yaml:"log_level"`
@@ -81,6 +93,98 @@ type EmbeddingsConfig struct {
 	MinTextLength int `yaml:"min_text_length"`
 }
 
+// MultimodalConfig configures OCR, CLIP, and Whisper workers.
+type MultimodalConfig struct {
+	PollInterval Duration `yaml:"poll_interval"`
+
+	OCR struct {
+		Enabled      bool   `yaml:"enabled"`
+		TesseractCmd string `yaml:"tesseract_cmd"`
+		Languages    string `yaml:"languages"`
+	} `yaml:"ocr"`
+
+	CLIP struct {
+		Enabled      bool   `yaml:"enabled"`
+		ModelDir     string `yaml:"model_dir"`
+		ModelVersion string `yaml:"model_version"`
+		Dimensions   int    `yaml:"dimensions"`
+	} `yaml:"clip"`
+
+	Whisper struct {
+		Enabled    bool   `yaml:"enabled"`
+		WhisperCmd string `yaml:"whisper_cmd"`
+		ModelPath  string `yaml:"model_path"`
+		ModelName  string `yaml:"model_name"`
+	} `yaml:"whisper"`
+}
+
+// LineageConfig configures crosspost detection, meme clustering, thread continuity.
+type LineageConfig struct {
+	PollInterval Duration `yaml:"poll_interval"`
+
+	Crosspost struct {
+		Enabled        bool `yaml:"enabled"`
+		PHASHThreshold int  `yaml:"phash_threshold"`
+	} `yaml:"crosspost"`
+
+	Clustering struct {
+		Enabled   bool   `yaml:"enabled"`
+		Algo      string `yaml:"algo"`      // "phash" or "dhash"
+		Threshold int    `yaml:"threshold"` // Hamming distance
+		BatchSize int    `yaml:"batch_size"`
+	} `yaml:"clustering"`
+
+	Continuity struct {
+		Enabled        bool    `yaml:"enabled"`
+		TimeGapHours   float64 `yaml:"time_gap_hours"`
+		TitleThreshold float64 `yaml:"title_threshold"`
+		OpSimThreshold float64 `yaml:"op_sim_threshold"`
+	} `yaml:"continuity"`
+
+	ReplyGraph struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"reply_graph"`
+}
+
+// SearchConfig configures saved search evaluation, alerts, and trend aggregation.
+type SearchConfig struct {
+	PollInterval Duration `yaml:"poll_interval"`
+
+	Evaluator struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"evaluator"`
+
+	Trends struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"trends"`
+
+	Alerts struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"alerts"`
+}
+
+// AmbitiousConfig configures stylometric clustering and anomaly detection.
+type AmbitiousConfig struct {
+	PollInterval Duration `yaml:"poll_interval"`
+
+	Stylometric struct {
+		Enabled      bool    `yaml:"enabled"`
+		MinPosts     int     `yaml:"min_posts"`
+		NGramMin     int     `yaml:"ngram_min"`
+		NGramMax     int     `yaml:"ngram_max"`
+		TopFeatures  int     `yaml:"top_features"`
+		SimThreshold float64 `yaml:"sim_threshold"`
+	} `yaml:"stylometric"`
+
+	Anomaly struct {
+		Enabled          bool    `yaml:"enabled"`
+		VolumeZThreshold float64 `yaml:"volume_z_threshold"`
+		BurstThreshold   float64 `yaml:"burst_threshold"`
+		BurstWindowMin   int     `yaml:"burst_window_min"`
+		LookbackHours    int     `yaml:"lookback_hours"`
+	} `yaml:"anomaly"`
+}
+
 // SchedulerConfig holds global defaults. Site/board configs override the
 // download flags; the three-level resolution is global -> site -> board.
 type SchedulerConfig struct {
@@ -90,6 +194,8 @@ type SchedulerConfig struct {
 	DownloadFull             bool     `yaml:"download_full"`
 	DownloadThumb            bool     `yaml:"download_thumb"`
 	TextOnly                 bool     `yaml:"text_only"`
+	CaptureRaw               bool     `yaml:"capture_raw"`
+	RawRetentionDays         int      `yaml:"raw_retention_days"`
 	CircuitBreakerThreshold  int      `yaml:"circuit_breaker_threshold"`
 	MaxAttempts              int      `yaml:"max_attempts"`
 	ThreadStaleAfter         Duration `yaml:"thread_stale_after"`
@@ -107,6 +213,8 @@ func Defaults() *Config {
 	c.Scheduler.MaxConcurrentRequests = 1
 	c.Scheduler.DownloadFull = false
 	c.Scheduler.DownloadThumb = true
+	c.Scheduler.CaptureRaw = true
+	c.Scheduler.RawRetentionDays = 90
 	c.Scheduler.CircuitBreakerThreshold = 5
 	c.Scheduler.MaxAttempts = 10
 	c.Scheduler.ThreadStaleAfter = Duration(6 * time.Hour)
@@ -122,6 +230,46 @@ func Defaults() *Config {
 	c.Embeddings.BatchSize = 32
 	c.Embeddings.PollInterval = Duration(10 * time.Second)
 	c.Embeddings.MinTextLength = 8
+	c.Multimodal.PollInterval = Duration(10 * time.Second)
+	c.Multimodal.OCR.Enabled = false
+	c.Multimodal.OCR.TesseractCmd = "tesseract"
+	c.Multimodal.OCR.Languages = "eng"
+	c.Multimodal.CLIP.Enabled = false
+	c.Multimodal.CLIP.ModelDir = "./models/mobileclip-s1"
+	c.Multimodal.CLIP.ModelVersion = "mobileclip-s1@1.0"
+	c.Multimodal.CLIP.Dimensions = 384
+	c.Multimodal.Whisper.Enabled = false
+	c.Multimodal.Whisper.WhisperCmd = "whisper-cli"
+	c.Multimodal.Whisper.ModelPath = "./models/whisper"
+	c.Multimodal.Whisper.ModelName = "base.en"
+	c.Lineage.PollInterval = Duration(5 * time.Minute)
+	c.Lineage.Crosspost.Enabled = false
+	c.Lineage.Crosspost.PHASHThreshold = 8
+	c.Lineage.Clustering.Enabled = false
+	c.Lineage.Clustering.Algo = "phash"
+	c.Lineage.Clustering.Threshold = 8
+	c.Lineage.Clustering.BatchSize = 500
+	c.Lineage.Continuity.Enabled = false
+	c.Lineage.Continuity.TimeGapHours = 48
+	c.Lineage.Continuity.TitleThreshold = 0.8
+	c.Lineage.Continuity.OpSimThreshold = 0.75
+	c.Lineage.ReplyGraph.Enabled = false
+	c.Search.PollInterval = Duration(5 * time.Minute)
+	c.Search.Evaluator.Enabled = false
+	c.Search.Trends.Enabled = false
+	c.Search.Alerts.Enabled = false
+	c.Ambitious.PollInterval = Duration(15 * time.Minute)
+	c.Ambitious.Stylometric.Enabled = false
+	c.Ambitious.Stylometric.MinPosts = 5
+	c.Ambitious.Stylometric.NGramMin = 3
+	c.Ambitious.Stylometric.NGramMax = 5
+	c.Ambitious.Stylometric.TopFeatures = 200
+	c.Ambitious.Stylometric.SimThreshold = 0.7
+	c.Ambitious.Anomaly.Enabled = false
+	c.Ambitious.Anomaly.VolumeZThreshold = 3.0
+	c.Ambitious.Anomaly.BurstThreshold = 5.0
+	c.Ambitious.Anomaly.BurstWindowMin = 10
+	c.Ambitious.Anomaly.LookbackHours = 168
 	return c
 }
 

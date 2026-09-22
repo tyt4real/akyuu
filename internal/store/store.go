@@ -53,9 +53,26 @@ func (s *Store) Ping(ctx context.Context) error {
 // ResetAll truncates every table. It exists for integration tests that run
 // against a shared database; it is not used by the running archiver.
 func (s *Store) ResetAll(ctx context.Context) error {
-	if _, err := s.pool.Exec(ctx,
-		`TRUNCATE post_embeddings, files, post_quotes, posts, threads, boards, sites, blobs, jobs RESTART IDENTITY`); err != nil {
-		return fmt.Errorf("store: reset all: %w", err)
+	// Drop materialized view first if it exists
+	_, _ = s.pool.Exec(ctx, `DROP MATERIALIZED VIEW IF EXISTS reply_graph_edges`)
+
+	// Truncate in dependency order (children first, parents last)
+	// Using individual TRUNCATE ... CASCADE for each table
+	tables := []string{
+		"post_embeddings", "files", "post_quotes", "posts", "threads",
+		"boards", "sites", "blobs", "jobs",
+		"raw_captures", "post_ocr", "post_clip_embedding", "post_transcript",
+		"taggings", "taggings_threads", "tags",
+		"continuity_links", "crosspost_matches",
+		"meme_cluster_blobs", "meme_spread", "meme_clusters", "meme_lineage_state",
+		"search_hits", "saved_searches", "search_alerts", "alert_history", "trend_snapshots",
+		"blob_phash", "platform_phash",
+	}
+	for _, t := range tables {
+		if _, err := s.pool.Exec(ctx, `TRUNCATE `+t+` RESTART IDENTITY CASCADE`); err != nil {
+			// Table might not exist yet (old test DB), ignore error
+			_ = err
+		}
 	}
 	return nil
 }
@@ -307,14 +324,26 @@ func (s *Store) ListPosts(ctx context.Context, site, board, nativeID string, has
 	var out []*Post
 	for rows.Next() {
 		var p Post
-		var commentParsed sql.NullString
+		var commentParsed, origBoard, website, origThread, origLink sql.NullString
 		if err := rows.Scan(&p.ID, &p.ThreadID, &p.NativeID, &p.Timestamp, &p.AuthorName, &p.Tripcode,
 			&p.Capcode, &p.PosterID, &commentParsed, &p.PendingEmbedding,
-			&p.Country, &p.Flag, &p.OriginalBoard, &p.Website, &p.OriginalThread, &p.OriginalLink); err != nil {
+			&p.Country, &p.Flag, &origBoard, &website, &origThread, &origLink); err != nil {
 			return nil, fmt.Errorf("store: scan post: %w", err)
 		}
 		if commentParsed.Valid {
 			p.CommentParsed = commentParsed.String
+		}
+		if origBoard.Valid {
+			p.OriginalBoard = origBoard.String
+		}
+		if website.Valid {
+			p.Website = website.String
+		}
+		if origThread.Valid {
+			p.OriginalThread = origThread.String
+		}
+		if origLink.Valid {
+			p.OriginalLink = origLink.String
 		}
 		out = append(out, &p)
 	}
@@ -379,4 +408,33 @@ func (s *Store) TagThreadLinks(ctx context.Context, tagID int64, threadIDs []int
 		}
 	}
 	return tx.Commit(ctx)
+}
+
+// Exec executes a query without returning rows. Used for raw capture storage.
+func (s *Store) Exec(ctx context.Context, query string, args ...any) error {
+	_, err := s.pool.Exec(ctx, query, args...)
+	return err
+}
+
+// QueryRow executes a query that returns a single row.
+func (s *Store) QueryRow(ctx context.Context, query string, args ...any) RowScanner {
+	return s.pool.QueryRow(ctx, query, args...)
+}
+
+// Query executes a query that returns multiple rows.
+func (s *Store) Query(ctx context.Context, query string, args ...any) (Rows, error) {
+	return s.pool.Query(ctx, query, args...)
+}
+
+// RowScanner is the interface for scanning a single row (implemented by pgx.Row).
+type RowScanner interface {
+	Scan(dest ...any) error
+}
+
+// Rows is the interface for iterating over query results (implemented by pgx.Rows).
+type Rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Close()
+	Err() error
 }

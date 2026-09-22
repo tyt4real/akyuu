@@ -53,6 +53,11 @@ func New(baseURL, userAgent string, transport http.RoundTripper, logger *slog.Lo
 // PlatformName implements Adapter.
 func (a *Adapter) PlatformName() string { return "lynxchan" }
 
+// CatalogURL implements Adapter.
+func (a *Adapter) CatalogURL(board string) string {
+	return a.client.BaseURL() + "/" + board + "/?json=1"
+}
+
 // lynxPost is one post from the LynxChan JSON feed. Numeric fields are kept as
 // raw messages because forks alternate between numbers and strings.
 type lynxPost struct {

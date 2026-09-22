@@ -217,6 +217,10 @@ func (s *Scheduler) runDownload(ctx context.Context, dl *downloader.Downloader, 
 				lg.Warn("full download failed", "url", pd.FullURL, "err", err)
 				continue
 			}
+			// Enqueue multimodal jobs for this file
+			if err := s.enqueueMultimodalJobs(ctx, pd.FileID, pd.PostID, pd.FullURL, lg); err != nil {
+				lg.Warn("enqueue multimodal jobs failed", "file", pd.FileID, "err", err)
+			}
 		}
 		if thumb {
 			if err := dl.DownloadThumb(ctx, pd); err != nil {
@@ -393,4 +397,61 @@ func catalogJobPages(job *store.Job) (page, pages int) {
 	}
 	_ = json.Unmarshal(job.Payload, &p)
 	return p.Page, p.Pages
+}
+
+// enqueueMultimodalJobs enqueues OCR, CLIP, and Whisper jobs for a downloaded file
+// based on its MIME type and the multimodal config.
+func (s *Scheduler) enqueueMultimodalJobs(ctx context.Context, fileID, postID int64, fullURL string, lg *slog.Logger) error {
+	// Get the file's mime type
+	var mimeType string
+	err := s.store.QueryRow(ctx, `
+		SELECT mime_type FROM blobs b
+		JOIN files f ON f.file_hash = b.file_hash
+		WHERE f.id = $1`, fileID).Scan(&mimeType)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	payload := map[string]any{
+		"file_id":   fileID,
+		"post_id":   postID,
+		"mime_type": mimeType,
+	}
+	payloadJSON, _ := json.Marshal(payload)
+
+	// OCR for images
+	if s.cfg.Multimodal.OCR.Enabled && isImageMime(mimeType) {
+		if _, err := s.store.EnqueueJob(ctx, 0, nil, nil, store.JobOCR, payloadJSON, now); err != nil {
+			lg.Warn("enqueue ocr job failed", "file", fileID, "err", err)
+		}
+	}
+
+	// CLIP for images
+	if s.cfg.Multimodal.CLIP.Enabled && isImageMime(mimeType) {
+		if _, err := s.store.EnqueueJob(ctx, 0, nil, nil, store.JobCLIP, payloadJSON, now); err != nil {
+			lg.Warn("enqueue clip job failed", "file", fileID, "err", err)
+		}
+	}
+
+	// Whisper for audio/video
+	if s.cfg.Multimodal.Whisper.Enabled && (isAudioMime(mimeType) || isVideoMime(mimeType)) {
+		if _, err := s.store.EnqueueJob(ctx, 0, nil, nil, store.JobWhisper, payloadJSON, now); err != nil {
+			lg.Warn("enqueue whisper job failed", "file", fileID, "err", err)
+		}
+	}
+
+	return nil
+}
+
+func isImageMime(mime string) bool {
+	return len(mime) > 6 && mime[:6] == "image/"
+}
+
+func isAudioMime(mime string) bool {
+	return len(mime) > 6 && mime[:6] == "audio/"
+}
+
+func isVideoMime(mime string) bool {
+	return len(mime) > 6 && mime[:6] == "video/"
 }
