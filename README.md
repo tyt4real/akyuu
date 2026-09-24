@@ -8,7 +8,7 @@ A self-hosted, multi-site imageboard archiver. It polls 4chan-style boards
 into a normalized Postgres schema, keeps one copy of every unique file content
 across all sites, and can optionally download full images and thumbnails behind
 a mandatory CSAM hash check. It can also index post bodies and answer
-**semantic search** queries over the archive (see below).
+semantic search queries over the archive (see below).
 
 No content is ever stored from a site — only structure (board, thread, post,
 quote graph, file metadata). Downloading bytes is optional and off by default.
