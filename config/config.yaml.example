@@ -56,3 +56,80 @@ embeddings:
   poll_interval: 10s
   # Posts whose cleaned text is shorter than this are not searchable.
   min_text_length: 8
+
+# Multimodal search: OCR, CLIP image embeddings, Whisper transcripts.
+# Each worker runs as a sidecar process (tesseract, whisper.cpp) or in-process ONNX.
+multimodal:
+  poll_interval: 10s
+
+  ocr:
+    enabled: false
+    tesseract_cmd: "tesseract"
+    languages: "eng+jpn+chi_sim"
+
+  clip:
+    enabled: false
+    model_dir: "./models/mobileclip-s1"
+    model_version: "mobileclip-s1@1.0"
+    dimensions: 384
+
+  whisper:
+    enabled: false
+    whisper_cmd: "whisper-cli"
+    model_path: "./models/whisper"
+    model_name: "base.en"
+
+# Dedup & lineage: crosspost detection, meme clustering, thread continuity.
+lineage:
+  poll_interval: 5m
+
+  crosspost:
+    enabled: false
+    phash_threshold: 8
+
+  clustering:
+    enabled: false
+    algo: "phash"
+    threshold: 8
+    batch_size: 500
+
+  continuity:
+    enabled: false
+    time_gap_hours: 48
+    title_threshold: 0.8
+    op_sim_threshold: 0.75
+
+  reply_graph:
+    enabled: false
+
+# Search & discovery: saved searches, alerts, trend charts.
+search:
+  poll_interval: 5m
+
+  evaluator:
+    enabled: false
+
+  trends:
+    enabled: false
+
+  alerts:
+    enabled: false
+
+# Ambitious features: stylometric clustering, raid/anomaly detection.
+ambitious:
+  poll_interval: 15m
+
+  stylometric:
+    enabled: false
+    min_posts: 5
+    ngram_min: 3
+    ngram_max: 5
+    top_features: 200
+    sim_threshold: 0.7
+
+  anomaly:
+    enabled: false
+    volume_z_threshold: 3.0
+    burst_threshold: 5.0
+    burst_window_min: 10
+    lookback_hours: 168

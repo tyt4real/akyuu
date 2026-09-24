@@ -91,6 +91,11 @@ type EmbeddingsConfig struct {
 	// MinTextLength is the minimum number of characters a cleaned post body
 	// must have to be embedded; shorter/empty posts are marked non-searchable.
 	MinTextLength int `yaml:"min_text_length"`
+
+	// NormalizeBeforeEmbed enables LLM-based text normalization before embedding.
+	// When enabled, each post body is passed through a TextNormalizer (e.g., LLM)
+	// to clean up noisy text before embedding.
+	NormalizeBeforeEmbed bool `yaml:"normalize_before_embed"`
 }
 
 // MultimodalConfig configures OCR, CLIP, and Whisper workers.

@@ -77,6 +77,28 @@ func (s *Store) ResetAll(ctx context.Context) error {
 	return nil
 }
 
+// WithEfSearch executes a function with a specific hnsw.ef_search value.
+// Uses SET LOCAL so the change is transaction-scoped and automatically
+// reverted when the transaction ends. Pass ef=0 to use the default.
+func (s *Store) WithEfSearch(ctx context.Context, ef int, fn func(context.Context) error) error {
+	if ef <= 0 {
+		return fn(ctx)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("store: begin ef_search tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, "SET LOCAL hnsw.ef_search = $1", ef); err != nil {
+		return fmt.Errorf("store: set ef_search: %w", err)
+	}
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // Migrate applies embedded migrations in filename order, tracking applied
 // versions in schema_migrations.
 func (s *Store) Migrate(ctx context.Context) error {

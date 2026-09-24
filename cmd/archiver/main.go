@@ -121,9 +121,11 @@ func startEmbedWorker(ctx context.Context, st *store.Store, cfg *config.Config, 
 	go func() {
 		defer model.Close()
 		embedder.NewWorker(st, model, embedder.WorkerConfig{
-			BatchSize:     cfg.Embeddings.BatchSize,
-			PollInterval:  cfg.Embeddings.PollInterval.D(),
-			MinTextLength: cfg.Embeddings.MinTextLength,
+			BatchSize:            cfg.Embeddings.BatchSize,
+			PollInterval:         cfg.Embeddings.PollInterval.D(),
+			MinTextLength:        cfg.Embeddings.MinTextLength,
+			NormalizeBeforeEmbed: cfg.Embeddings.NormalizeBeforeEmbed,
+			Normalizer:           embedder.NewFakeNormalizer(), // Replace with real LLM normalizer when available
 		}, logger).Run(ctx)
 	}()
 	return nil

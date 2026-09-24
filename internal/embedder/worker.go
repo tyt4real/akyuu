@@ -26,30 +26,39 @@ type StoreAPI interface {
 // or the other, the worker doubles as the one-time backfill for existing
 // archives.
 type Worker struct {
-	store         StoreAPI
-	embed         Embedder
-	batchSize     int
-	pollInterval  time.Duration
-	minTextLength int
-	logger        *slog.Logger
+	store                StoreAPI
+	embed                Embedder
+	batchSize            int
+	pollInterval         time.Duration
+	minTextLength        int
+	normalizeBeforeEmbed bool
+	normalizer           TextNormalizer
+	logger               *slog.Logger
 }
 
 // WorkerConfig carries the knobs for a Worker.
 type WorkerConfig struct {
-	BatchSize     int
-	PollInterval  time.Duration
-	MinTextLength int
+	BatchSize            int
+	PollInterval         time.Duration
+	MinTextLength        int
+	NormalizeBeforeEmbed bool
+	Normalizer           TextNormalizer
 }
 
-// NewWorker wires a worker onto a store and an embedder.
+// NewWorker wires a worker onto a store, an embedder, and an optional normalizer.
 func NewWorker(st StoreAPI, e Embedder, cfg WorkerConfig, logger *slog.Logger) *Worker {
+	if cfg.Normalizer == nil {
+		cfg.Normalizer = NewFakeNormalizer()
+	}
 	return &Worker{
-		store:         st,
-		embed:         e,
-		batchSize:     cfg.BatchSize,
-		pollInterval:  cfg.PollInterval,
-		minTextLength: cfg.MinTextLength,
-		logger:        logger,
+		store:                st,
+		embed:                e,
+		batchSize:            cfg.BatchSize,
+		pollInterval:         cfg.PollInterval,
+		minTextLength:        cfg.MinTextLength,
+		normalizeBeforeEmbed: cfg.NormalizeBeforeEmbed,
+		normalizer:           cfg.Normalizer,
+		logger:               logger,
 	}
 }
 
@@ -94,6 +103,14 @@ func (w *Worker) processBatch(ctx context.Context, posts []*store.Post) (embedde
 		if err != nil {
 			w.logger.Warn("embed worker: clean post", "post", p.ID, "err", err)
 			continue
+		}
+		if w.normalizeBeforeEmbed {
+			normalized, err := w.normalizer.Normalize(ctx, text)
+			if err != nil {
+				w.logger.Warn("embed worker: normalize text", "post", p.ID, "err", err)
+			} else {
+				text = normalized
+			}
 		}
 		if len(text) < w.minTextLength {
 			if err := w.store.MarkEmbeddingSkipped(ctx, p.ID); err != nil {
