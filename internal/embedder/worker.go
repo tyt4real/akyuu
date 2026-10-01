@@ -141,16 +141,22 @@ func (w *Worker) processBatch(ctx context.Context, posts []*store.Post) (embedde
 			w.logger.Error("embed worker: store vector", "post", j.post.ID, "err", err)
 			continue
 		}
+		w.logger.Debug("embed worker: embedded post", "post", j.post.ID, "text_len", len(j.text))
 		embedded++
 	}
 	return embedded, skipped
 }
 
-// hashText produces a stable content hash for a cleaned body, used to detect
+// HashText produces a stable content hash for a cleaned body, used to detect
 // whether a stored vector still matches the current text.
-func hashText(text string) string {
+func HashText(text string) string {
 	sum := sha256.Sum256([]byte(text))
 	return hex.EncodeToString(sum[:])
+}
+
+// hashText is deprecated; use HashText instead.
+func hashText(text string) string {
+	return HashText(text)
 }
 
 // sleep waits for d unless ctx is cancelled first.

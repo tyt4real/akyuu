@@ -43,3 +43,8 @@ AGENTS.md
 .DS_Store
 Thumbs.db
 docs/
+# Evalbench output
+/output/
+
+# Local test configs
+config/test-*.yaml

@@ -133,3 +133,15 @@ ambitious:
     burst_threshold: 5.0
     burst_window_min: 10
     lookback_hours: 168
+
+# Modal cloud integration for embedding and evalbench.
+# Requires MODAL_TOKEN_ID and MODAL_TOKEN_SECRET environment variables.
+# See https://modal.com/docs for setup.
+modal:
+  enabled: false
+  app_name: "akyuu"
+  embed_function: "Embedder.embed_batch"
+  evalbench_function: "run_evalbench"
+  data_volume: "akyuu-modal-data"
+  model_volume: "akyuu-model-cache"
+  region: ""  # optional: "us-east", "eu-west", etc.

@@ -14,7 +14,8 @@ RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/archiver ./cmd/arc
     && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/cirno ./cmd/cirno \
     && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/sunny-milk ./cmd/sunny-milk \
     && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/luna-child ./cmd/luna-child \
-    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/star-sapphire ./cmd/star-sapphire
+    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/star-sapphire ./cmd/star-sapphire \
+    && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/evalbench-runner ./cmd/evalbench-runner
 
 # --- runtime stage -----------------------------------------------------------
 # Debian-based: the ONNX Runtime shared library needs glibc (not musl), so
@@ -49,6 +50,7 @@ COPY --from=build /out/cirno /usr/local/bin/cirno
 COPY --from=build /out/sunny-milk /usr/local/bin/sunny-milk
 COPY --from=build /out/luna-child /usr/local/bin/luna-child
 COPY --from=build /out/star-sapphire /usr/local/bin/star-sapphire
+COPY --from=build /out/evalbench-runner /usr/local/bin/evalbench-runner
 
 # Default images are built for the archiver; the api binary ships alongside it
 # (docker run <image> api -listen :8080). The ONNX model files and

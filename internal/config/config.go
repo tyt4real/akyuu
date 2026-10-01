@@ -55,6 +55,9 @@ type Config struct {
 	// Ambitious configures stylometric clustering and anomaly detection.
 	Ambitious AmbitiousConfig `yaml:"ambitious"`
 
+	// Modal configures Modal cloud integration for embedding and evalbench.
+	Modal ModalConfig `yaml:"modal"`
+
 	SitesDir string `yaml:"sites_dir"`
 
 	LogLevel string `yaml:"log_level"`
@@ -190,6 +193,17 @@ type AmbitiousConfig struct {
 	} `yaml:"anomaly"`
 }
 
+// ModalConfig configures Modal cloud integration for embedding and evalbench.
+type ModalConfig struct {
+	Enabled           bool   `yaml:"enabled"`
+	AppName           string `yaml:"app_name"`
+	EmbedFunction     string `yaml:"embed_function"`
+	EvalbenchFunction string `yaml:"evalbench_function"`
+	DataVolume        string `yaml:"data_volume"`
+	ModelVolume       string `yaml:"model_volume"`
+	Region            string `yaml:"region"`
+}
+
 // SchedulerConfig holds global defaults. Site/board configs override the
 // download flags; the three-level resolution is global -> site -> board.
 type SchedulerConfig struct {
@@ -275,6 +289,12 @@ func Defaults() *Config {
 	c.Ambitious.Anomaly.BurstThreshold = 5.0
 	c.Ambitious.Anomaly.BurstWindowMin = 10
 	c.Ambitious.Anomaly.LookbackHours = 168
+	c.Modal.AppName = "akyuu"
+	c.Modal.EmbedFunction = "Embedder.embed_batch"
+	c.Modal.EvalbenchFunction = "run_evalbench"
+	c.Modal.DataVolume = "akyuu-modal-data"
+	c.Modal.ModelVolume = "akyuu-model-cache"
+	c.Modal.Region = ""
 	return c
 }
 

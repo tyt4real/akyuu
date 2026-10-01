@@ -10,6 +10,7 @@ CREATE INDEX IF NOT EXISTS post_embeddings_ip_hnsw_idx
     WITH (m = 16, ef_construction = 64);
 
 -- For halfvec dot product (if halfvec is populated)
+-- halfvec uses halfvec_ip_ops for inner product
 CREATE INDEX IF NOT EXISTS post_embeddings_halfvec_ip_hnsw_idx
-    ON post_embeddings USING hnsw (embedding_half vector_ip_ops)
+    ON post_embeddings USING hnsw (embedding_half halfvec_ip_ops)
     WITH (m = 16, ef_construction = 64);

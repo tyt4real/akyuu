@@ -50,6 +50,11 @@ func (s *Store) Ping(ctx context.Context) error {
 	return nil
 }
 
+// Pool returns the underlying pgx connection pool.
+func (s *Store) Pool() *pgxpool.Pool {
+	return s.pool
+}
+
 // ResetAll truncates every table. It exists for integration tests that run
 // against a shared database; it is not used by the running archiver.
 func (s *Store) ResetAll(ctx context.Context) error {

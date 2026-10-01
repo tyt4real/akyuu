@@ -3,10 +3,19 @@
 -- halfvec uses 16-bit floats (2 bytes per dimension) vs 4 bytes for full vector
 -- 50% storage reduction with minimal recall loss for most use cases
 
-ALTER TABLE post_embeddings ADD COLUMN embedding_half halfvec(384);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'post_embeddings' AND column_name = 'embedding_half'
+    ) THEN
+        ALTER TABLE post_embeddings ADD COLUMN embedding_half halfvec(384);
+    END IF;
+END $$;
 
 -- Populate from existing embeddings
-UPDATE post_embeddings SET embedding_half = embedding::halfvec(384);
+UPDATE post_embeddings SET embedding_half = embedding::halfvec(384)
+WHERE embedding_half IS NULL AND embedding IS NOT NULL;
 
 -- HNSW index for halfvec cosine similarity
 CREATE INDEX IF NOT EXISTS post_embeddings_halfvec_hnsw_idx

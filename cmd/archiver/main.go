@@ -7,10 +7,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	_ "akyuu/internal/site/4chan"
 	_ "akyuu/internal/site/4chon"
@@ -112,8 +114,11 @@ func mergeSites(builtin, custom []*config.SiteConfig) []*config.SiteConfig {
 }
 
 // startEmbedWorker loads the ONNX model and runs the embedding worker in the
-// background until ctx is cancelled.
+// background until ctx is cancelled. If modal is enabled, uses ModalEmbedder instead.
 func startEmbedWorker(ctx context.Context, st *store.Store, cfg *config.Config, logger *slog.Logger) error {
+	if cfg.Modal.Enabled {
+		return startModalEmbedWorker(ctx, st, cfg, logger)
+	}
 	model, err := embedder.NewONNX(cfg.Embeddings.ModelDir, cfg.Embeddings.ModelName, cfg.Embeddings.Dimensions)
 	if err != nil {
 		return err
@@ -125,10 +130,86 @@ func startEmbedWorker(ctx context.Context, st *store.Store, cfg *config.Config, 
 			PollInterval:         cfg.Embeddings.PollInterval.D(),
 			MinTextLength:        cfg.Embeddings.MinTextLength,
 			NormalizeBeforeEmbed: cfg.Embeddings.NormalizeBeforeEmbed,
-			Normalizer:           embedder.NewFakeNormalizer(), // Replace with real LLM normalizer when available
+			Normalizer:           embedder.NewFakeNormalizer(),
 		}, logger).Run(ctx)
 	}()
 	return nil
+}
+
+func startModalEmbedWorker(ctx context.Context, st *store.Store, cfg *config.Config, logger *slog.Logger) error {
+	modalEmb, err := embedder.NewModalEmbedder(cfg.Modal, logger)
+	if err != nil {
+		return fmt.Errorf("create modal embedder: %w", err)
+	}
+
+	go func() {
+		defer modalEmb.Close()
+		ticker := time.NewTicker(cfg.Embeddings.PollInterval.D())
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				posts, err := st.PendingEmbeddingBatch(ctx, cfg.Embeddings.BatchSize)
+				if err != nil {
+					logger.Error("modal embed worker: pending batch", "err", err)
+					continue
+				}
+				if len(posts) == 0 {
+					continue
+				}
+				processModalBatch(ctx, st, modalEmb, posts, logger)
+			}
+		}
+	}()
+	return nil
+}
+
+func processModalBatch(ctx context.Context, st *store.Store, emb *embedder.ModalEmbedder, posts []*store.Post, logger *slog.Logger) {
+	type job struct {
+		post *store.Post
+		text string
+	}
+	var jobs []job
+	for _, p := range posts {
+		text, err := embedder.CleanText(p.CommentParsed)
+		if err != nil {
+			logger.Warn("modal embed worker: clean post", "post", p.ID, "err", err)
+			continue
+		}
+		if len(text) < 8 {
+			if err := st.MarkEmbeddingSkipped(ctx, p.ID); err != nil {
+				logger.Error("modal embed worker: skip post", "post", p.ID, "err", err)
+			}
+			continue
+		}
+		jobs = append(jobs, job{post: p, text: text})
+	}
+
+	if len(jobs) == 0 {
+		return
+	}
+
+	texts := make([]string, len(jobs))
+	for i, j := range jobs {
+		texts[i] = j.text
+	}
+
+	vecs, err := emb.EmbedBatch(ctx, texts)
+	if err != nil {
+		logger.Error("modal embed worker: embed batch", "count", len(texts), "err", err)
+		return
+	}
+
+	for i, j := range jobs {
+		if err := st.MarkEmbedding(ctx, j.post.ID, vecs[i], emb.ModelVersion(), embedder.HashText(j.text)); err != nil {
+			logger.Error("modal embed worker: store vector", "post", j.post.ID, "err", err)
+			continue
+		}
+		logger.Debug("modal embed worker: embedded post", "post", j.post.ID, "text_len", len(j.text))
+	}
 }
 
 // syncSites upserts every configured site and board so the scheduler's lookups
