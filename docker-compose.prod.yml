@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   archiver:
-    image: tyt4/akyuu:v0.1.0
+    image: tyt4/akyuu:latest
     environment:
       - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
@@ -16,7 +16,7 @@ services:
     user: "10001:10001"
 
   cirno:
-    image: tyt4/akyuu:v0.1.0
+    image: tyt4/akyuu:latest
     command: ["cirno", "-config", "/akyuu/config/config.yaml"]
     environment:
       - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
@@ -31,7 +31,7 @@ services:
     user: "10001:10001"
 
   sunny-milk:
-    image: tyt4/akyuu:v0.1.0
+    image: tyt4/akyuu:latest
     command: ["sunny-milk", "-config", "/akyuu/config/config.yaml"]
     environment:
       - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
@@ -46,7 +46,7 @@ services:
     user: "10001:10001"
 
   luna-child:
-    image: tyt4/akyuu:v0.1.0
+    image: tyt4/akyuu:latest
     command: ["luna-child", "-config", "/akyuu/config/config.yaml"]
     environment:
       - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
@@ -61,7 +61,7 @@ services:
     user: "10001:10001"
 
   star-sapphire:
-    image: tyt4/akyuu:v0.1.0
+    image: tyt4/akyuu:latest
     command: ["star-sapphire", "-config", "/akyuu/config/config.yaml"]
     environment:
       - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
@@ -76,7 +76,7 @@ services:
     user: "10001:10001"
 
   api:
-    image: tyt4/akyuu:v0.1.0
+    image: tyt4/akyuu:latest
     entrypoint: ["/usr/local/bin/api"]
     command: ["-listen", ":8080", "-config", "/akyuu/config/config.yaml"]
     environment:
