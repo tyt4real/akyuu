@@ -1,0 +1,123 @@
+# Production config for remote server
+# Text-only mode, Modal cloud embeddings only
+# Requires: MODAL_TOKEN_ID, MODAL_TOKEN_SECRET, POSTGRES_PASSWORD env vars
+
+database:
+  dsn: "postgres://akyuu:${POSTGRES_PASSWORD}@postgres:5432/akyuu?sslmode=disable"
+
+storage:
+  dir: "/akyuu/storage"
+
+safety:
+  # No CSAM hash list configured — safety check runs but matches nothing
+  # hash_list_path: "/akyuu/config/csam_hashes.txt"
+  # Optional PhotoDNA API
+  # api_url: ""
+  # api_token: ""
+
+scheduler:
+  # Global defaults
+  poll_interval: 60s
+  rate_limit_per_sec: 1
+  max_concurrent_requests: 1
+
+  # Download policy: TEXT-ONLY, no media downloads
+  text_only: true
+  download_full: false
+  download_thumb: false
+  capture_raw: true
+  raw_retention_days: 90
+
+  # Circuit breaker & retries
+  circuit_breaker_threshold: 5
+  max_attempts: 10
+  thread_stale_after: 6h
+  missing_before_archive: 3
+
+  # Worker pool
+  workers_per_site: 1
+  download_backfill_batch: 50
+  consecutive_fail_blocklist: 3
+
+sites_dir: "/akyuu/config/sites"
+
+log_level: "info"
+
+# Modal cloud embeddings - REQUIRED for semantic search
+# Set MODAL_TOKEN_ID and MODAL_TOKEN_SECRET environment variables
+embeddings:
+  enabled: true
+  # Not used - model runs on Modal cloud
+  model_dir: ""
+  model_name: "all-MiniLM-L6-v2"
+  dimensions: 384
+  batch_size: 32
+  poll_interval: 10s
+  min_text_length: 8
+
+# Multimodal DISABLED - text-only mode
+multimodal:
+  poll_interval: 10s
+  ocr:
+    enabled: false
+  clip:
+    enabled: false
+  whisper:
+    enabled: false
+
+# Lineage: crosspost, clustering, continuity
+lineage:
+  poll_interval: 5m
+  crosspost:
+    enabled: true
+    phash_threshold: 8
+  clustering:
+    enabled: true
+    algo: "phash"
+    threshold: 8
+    batch_size: 500
+  continuity:
+    enabled: true
+    time_gap_hours: 48
+    title_threshold: 0.8
+    op_sim_threshold: 0.75
+  reply_graph:
+    enabled: true
+
+# Search: evaluator, trends
+search:
+  poll_interval: 5m
+  evaluator:
+    enabled: true
+  trends:
+    enabled: true
+  alerts:
+    enabled: false
+
+# Ambitious: stylometric, anomaly
+ambitious:
+  poll_interval: 15m
+  stylometric:
+    enabled: true
+    min_posts: 5
+    ngram_min: 3
+    ngram_max: 5
+    top_features: 200
+    sim_threshold: 0.7
+  anomaly:
+    enabled: true
+    volume_z_threshold: 3.0
+    burst_threshold: 5.0
+    burst_window_min: 10
+    lookback_hours: 168
+
+# Modal cloud integration
+# Requires MODAL_TOKEN_ID and MODAL_TOKEN_SECRET environment variables
+modal:
+  enabled: true
+  app_name: "akyuu"
+  embed_function: "Embedder.embed_batch"
+  evalbench_function: "run_evalbench"
+  data_volume: "akyuu-modal-data"
+  model_volume: "akyuu-model-cache"
+  region: ""

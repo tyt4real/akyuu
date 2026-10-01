@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-akyuu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-akyuu}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-akyuu} -d ${POSTGRES_DB:-akyuu}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  archiver:
+    image: tyt4/akyuu:v0.1.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    restart: unless-stopped
+    user: "10001:10001"
+
+  cirno:
+    image: tyt4/akyuu:v0.1.0
+    command: ["cirno", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    restart: unless-stopped
+    user: "10001:10001"
+
+  sunny-milk:
+    image: tyt4/akyuu:v0.1.0
+    command: ["sunny-milk", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    restart: unless-stopped
+    user: "10001:10001"
+
+  luna-child:
+    image: tyt4/akyuu:v0.1.0
+    command: ["luna-child", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    restart: unless-stopped
+    user: "10001:10001"
+
+  star-sapphire:
+    image: tyt4/akyuu:v0.1.0
+    command: ["star-sapphire", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    restart: unless-stopped
+    user: "10001:10001"
+
+  api:
+    image: tyt4/akyuu:v0.1.0
+    entrypoint: ["/usr/local/bin/api"]
+    command: ["-listen", ":8080", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

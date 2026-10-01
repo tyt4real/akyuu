@@ -48,3 +48,10 @@ docs/
 
 # Local test configs
 config/test-*.yaml
+
+# Production deployment
+deploy.sh
+.env
+.env.*
+!.env.example
+!.env.prod.example
