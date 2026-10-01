@@ -116,7 +116,7 @@ ambitious:
 modal:
   enabled: true
   app_name: "akyuu"
-  embed_function: "Embedder.embed_batch"
+  embed_function: "embed_batch"
   evalbench_function: "run_evalbench"
   data_volume: "akyuu-modal-data"
   model_volume: "akyuu-model-cache"
