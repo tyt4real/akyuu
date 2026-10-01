@@ -1,10 +1,10 @@
 #!/bin/bash
-# Production deployment script for akyuu remote server
+# Production deployment script for akyuu remote server with external PostgreSQL
 # Run on the remote server after cloning the repo
 
 set -e
 
-echo "=== akyuu Production Deployment ==="
+echo "=== akyuu Production Deployment (External PostgreSQL) ==="
 
 # Check for .env file
 if [ ! -f .env ]; then
@@ -28,6 +28,16 @@ fi
 
 echo "Environment variables verified."
 
+# Verify external PostgreSQL is accessible
+echo "Checking external PostgreSQL connection..."
+if ! pg_isready -h host.docker.internal -p 5433 -U akyuu -d akyuu > /dev/null 2>&1; then
+    echo "WARNING: Cannot connect to PostgreSQL at host.docker.internal:5433"
+    echo "Make sure PostgreSQL is running and accessible from Docker containers."
+    echo "Continuing anyway..."
+fi
+
+echo "Environment variables verified."
+
 # Pull latest images
 echo "Pulling Docker images..."
 docker compose -f docker-compose.prod.yml pull
@@ -39,18 +49,6 @@ mkdir -p storage config/sites
 echo "Starting services..."
 docker compose -f docker-compose.prod.yml up -d
 
-# Wait for postgres to be healthy
-echo "Waiting for PostgreSQL..."
-until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U akyuu -d akyuu > /dev/null 2>&1; do
-    echo "Waiting for postgres..."
-    sleep 2
-done
-
-echo "PostgreSQL is ready."
-
-# Run migrations (handled by archiver on startup)
-echo "Services starting... Check logs with: docker compose -f docker-compose.prod.yml logs -f"
-
 # Show status
 docker compose -f docker-compose.prod.yml ps
 
@@ -59,7 +57,7 @@ echo "=== Deployment Complete ==="
 echo "API available at: http://localhost:8080"
 echo "Logs: docker compose -f docker-compose.prod.yml logs -f [service]"
 echo ""
-echo "To run embedding backlog:"
+echo "To run embedding backlog on Modal:"
 echo "  docker compose -f docker-compose.prod.yml run --rm archiver \\"
 echo "    go run ./cmd/evalbench-runner -config /akyuu/config/config.yaml -modal -k 20"
 echo ""
