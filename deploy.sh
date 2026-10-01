@@ -54,7 +54,7 @@ docker compose -f docker-compose.prod.yml ps
 
 echo ""
 echo "=== Deployment Complete ==="
-echo "API available at: http://localhost:8080"
+echo "API available at: http://localhost:8081"
 echo "Logs: docker compose -f docker-compose.prod.yml logs -f [service]"
 echo ""
 echo "To run embedding backlog on Modal:"
