@@ -3,7 +3,7 @@
 # Requires: MODAL_TOKEN_ID, MODAL_TOKEN_SECRET, POSTGRES_PASSWORD env vars
 
 database:
-  dsn: "postgres://akyuu:${POSTGRES_PASSWORD}@host.docker.internal:5433/akyuu?sslmode=disable"
+  dsn: "postgres://akyuu:${POSTGRES_PASSWORD}@172.17.0.1:5433/akyuu?sslmode=disable"
 
 storage:
   dir: "/akyuu/storage"

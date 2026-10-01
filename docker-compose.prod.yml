@@ -4,7 +4,7 @@ services:
   archiver:
     image: tyt4/akyuu:v0.1.0
     environment:
-      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@host.docker.internal:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
       - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
       - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
@@ -19,7 +19,7 @@ services:
     image: tyt4/akyuu:v0.1.0
     command: ["cirno", "-config", "/akyuu/config/config.yaml"]
     environment:
-      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@host.docker.internal:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
       - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
       - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
@@ -34,7 +34,7 @@ services:
     image: tyt4/akyuu:v0.1.0
     command: ["sunny-milk", "-config", "/akyuu/config/config.yaml"]
     environment:
-      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@host.docker.internal:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
       - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
       - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
@@ -49,7 +49,7 @@ services:
     image: tyt4/akyuu:v0.1.0
     command: ["luna-child", "-config", "/akyuu/config/config.yaml"]
     environment:
-      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@host.docker.internal:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
       - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
       - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
@@ -64,7 +64,7 @@ services:
     image: tyt4/akyuu:v0.1.0
     command: ["star-sapphire", "-config", "/akyuu/config/config.yaml"]
     environment:
-      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@host.docker.internal:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
       - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
       - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
@@ -80,7 +80,7 @@ services:
     entrypoint: ["/usr/local/bin/api"]
     command: ["-listen", ":8080", "-config", "/akyuu/config/config.yaml"]
     environment:
-      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@host.docker.internal:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
       - LOG_LEVEL=info
     volumes:
       - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro

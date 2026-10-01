@@ -31,6 +31,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Allow DATABASE_DSN env var to override config file
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		dsn = cfg.Database.DSN
+	}
+
 	logger := newLogger(cfg.LogLevel)
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -40,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	st, err := store.New(ctx, cfg.Database.DSN, logger)
+	st, err := store.New(ctx, dsn, logger)
 	if err != nil {
 		logger.Error("connect database", "err", err)
 		os.Exit(1)
