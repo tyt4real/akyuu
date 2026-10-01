@@ -12,7 +12,7 @@ import (
 
 type ModalEmbedder struct {
 	client       *modal.Client
-	fn           *modal.Function
+	method       *modal.Function
 	modelVersion string
 	dimensions   int
 	logger       Logger
@@ -34,14 +34,25 @@ func NewModalEmbedder(cfg config.ModalConfig, logger Logger) (*ModalEmbedder, er
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fn, err := mc.Functions.FromName(ctx, cfg.AppName, cfg.EmbedFunction, nil)
+	// Use new SDK API: Cls.FromName -> Instance -> Method
+	cls, err := mc.Cls.FromName(ctx, cfg.AppName, "Embedder", nil)
 	if err != nil {
-		return nil, fmt.Errorf("get modal function %q: %w", cfg.EmbedFunction, err)
+		return nil, fmt.Errorf("get modal class %q: %w", "Embedder", err)
+	}
+
+	instance, err := cls.Instance(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get modal class instance: %w", err)
+	}
+
+	method, err := instance.Method(cfg.EmbedFunction)
+	if err != nil {
+		return nil, fmt.Errorf("get modal method %q: %w", cfg.EmbedFunction, err)
 	}
 
 	return &ModalEmbedder{
 		client:       mc,
-		fn:           fn,
+		method:       method,
 		modelVersion: "all-MiniLM-L6-v2",
 		dimensions:   384,
 		logger:       logger,
@@ -54,7 +65,7 @@ func (m *ModalEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]flo
 	}
 
 	batches := [][]string{texts}
-	result, err := m.fn.Remote(ctx, []any{batches}, nil)
+	result, err := m.method.Remote(ctx, []any{batches}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("modal embed_batch remote call: %w", err)
 	}

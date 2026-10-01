@@ -13,11 +13,12 @@ import (
 )
 
 type ModalEvalbench struct {
-	client  *modal.Client
-	fn      *modal.Function
-	app     *modal.App
-	dataVol string
-	logger  Logger
+	client    *modal.Client
+	cls       *modal.Cls
+	method    *modal.Function
+	app       *modal.App
+	dataVol   string
+	logger    Logger
 }
 
 type Logger interface {
@@ -36,9 +37,20 @@ func NewModalEvalbench(cfg config.ModalConfig, logger Logger) (*ModalEvalbench, 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fn, err := mc.Functions.FromName(ctx, cfg.AppName, cfg.EvalbenchFunction, nil)
+	// Use new SDK API: Cls.FromName -> Instance -> Method
+	cls, err := mc.Cls.FromName(ctx, cfg.AppName, "Embedder", nil)
 	if err != nil {
-		return nil, fmt.Errorf("get modal function %q: %w", cfg.EvalbenchFunction, err)
+		return nil, fmt.Errorf("get modal class %q: %w", "Embedder", err)
+	}
+
+	instance, err := cls.Instance(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get modal class instance: %w", err)
+	}
+
+	method, err := instance.Method(cfg.EvalbenchFunction)
+	if err != nil {
+		return nil, fmt.Errorf("get modal method %q: %w", cfg.EvalbenchFunction, err)
 	}
 
 	app, err := mc.Apps.FromName(ctx, cfg.AppName, nil)
@@ -47,11 +59,12 @@ func NewModalEvalbench(cfg config.ModalConfig, logger Logger) (*ModalEvalbench, 
 	}
 
 	return &ModalEvalbench{
-		client:  mc,
-		fn:      fn,
-		app:     app,
-		dataVol: cfg.DataVolume,
-		logger:  logger,
+		client:    mc,
+		cls:       cls,
+		method:    method,
+		app:       app,
+		dataVol:   cfg.DataVolume,
+		logger:    logger,
 	}, nil
 }
 
@@ -69,7 +82,7 @@ func (m *ModalEvalbench) RunEvalbench(ctx context.Context, queryCases []QueryCas
 
 	m.logger.Info("starting modal evalbench", "queries", len(queryCases), "k", k)
 
-	fc, err := m.fn.Spawn(ctx, []any{input}, nil)
+	fc, err := m.method.Spawn(ctx, []any{input}, nil)
 	if err != nil {
 		return "", "", fmt.Errorf("spawn modal evalbench: %w", err)
 	}
