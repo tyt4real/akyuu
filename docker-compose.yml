@@ -132,5 +132,26 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["webui", "-config", "/akyuu/config/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://akyuu:akyuu@postgres:5432/akyuu?sslmode=disable
+      - LOG_LEVEL=debug
+    volumes:
+      - ./config/config.docker.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites.docker:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+      - ./models:/akyuu/models:ro
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    user: "0:0"
+
 volumes:
   postgres_data:

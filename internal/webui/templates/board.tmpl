@@ -1,0 +1,137 @@
+{{define "content"}}
+<div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-[var(--font-color)] mb-1">
+            /{{.Board.Code}}/ - {{.Board.Title}}
+        </h2>
+        {{if .Board.Subtitle}}
+        <p class="text-[var(--subordinate-header)]">{{.Board.Subtitle}}</p>
+        {{end}}
+    </div>
+
+    <div class="text-center mb-6">
+        <button id="toggleFormBtn" class="bg-[var(--link-color)] text-[var(--post-bg)] px-6 py-2 rounded hover:bg-[var(--link-hover)] transition-colors shadow">
+            New Thread
+        </button>
+    </div>
+
+    <!-- No-JS fallback: show form automatically when JavaScript is disabled -->
+    <noscript>
+    <div class="text-center mb-6">
+        <h3 class="text-lg font-semibold text-[var(--font-color)]">New Thread</h3>
+    </div>
+    <div class="flex justify-center">
+        <div class="w-full max-w-3xl post-form bg-[var(--post-bg)] border border-[var(--post-border)] rounded-md p-6 shadow-[0_0_10px_rgba(125,192,212,0.3)] mb-8">
+            <form action="/site/{{.Site.Name}}/board/{{.Board.Code}}/post" method="POST" enctype="multipart/form-data" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Name</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="name" placeholder="Anonymous" maxlength="100">
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Subject</label>
+                    <div class="flex flex-1 gap-2">
+                        <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="subject" maxlength="100">
+                        <input class="bg-[var(--link-color)] text-[var(--post-bg)] px-4 py-2 rounded cursor-pointer hover:bg-[var(--link-hover)]" type="submit" value="Post">
+                    </div>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)] pt-2">Comment</label>
+                    <textarea class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" name="comment" required maxlength="4096"></textarea>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">File</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="file" name="file" accept="image/*">
+                </div>
+                <div class="flex gap-4 items-center">
+                    <label class="w-24"></label>
+                    <img src="/captcha?{{now.Unix}}" class="h-10">
+                    <a class="text-[var(--link-color)]" href="#" onclick="document.getElementById('captcha-img').src='/captcha?'+Date.now(); return false;">Reload</a>
+                </div>
+                <div class="flex gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Captcha</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="captcha" required maxlength="6">
+                </div>
+            </form>
+        </div>
+    </div>
+    </noscript>
+
+    <div class="flex justify-center">
+        <div id="postFormContainer" class="hidden w-full max-w-3xl post-form bg-[var(--post-bg)] border border-[var(--post-border)] rounded-md p-6 shadow-[0_0_10px_rgba(125,192,212,0.3)] mb-8">
+            <form action="/site/{{.Site.Name}}/board/{{.Board.Code}}/post" method="POST" enctype="multipart/form-data" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Name</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="name" placeholder="Anonymous" maxlength="100">
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Subject</label>
+                    <div class="flex flex-1 gap-2">
+                        <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="subject" maxlength="100">
+                        <input class="bg-[var(--link-color)] text-[var(--post-bg)] px-4 py-2 rounded cursor-pointer hover:bg-[var(--link-hover)]" type="submit" value="Post">
+                    </div>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)] pt-2">Comment</label>
+                    <textarea class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" name="comment" required maxlength="4096"></textarea>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">File</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="file" name="file" accept="image/*">
+                </div>
+                <div class="flex gap-4 items-center">
+                    <label class="w-24"></label>
+                    <img src="/captcha?{{now.Unix}}" id="captcha-img" class="h-10">
+                    <a class="text-[var(--link-color)]" href="#" onclick="document.getElementById('captcha-img').src='/captcha?'+Date.now(); return false;">Reload</a>
+                </div>
+                <div class="flex gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Captcha</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="captcha" required maxlength="6">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    const btn = document.getElementById('toggleFormBtn');
+    const form = document.getElementById('postFormContainer');
+    btn?.addEventListener('click', () => {
+        form.classList.toggle('hidden');
+        form.scrollIntoView({ behavior: 'smooth' });
+    });
+    </script>
+
+    <hr class="my-8 border-white/20">
+
+    {{if .Threads}}
+        {{range .Threads}}
+        <div class="thread">
+            {{template "post" dict "Post" . "Board" .Board "IsOP" true}}
+            <div class="thread-info">
+                {{.ReplyCount}} replies
+                {{if .FileCount}} | {{.FileCount}} images{{end}}
+            </div>
+            {{if gt .ReplyCount 3}}
+            <div class="thread-info">
+                {{sub .ReplyCount 3}} posts omitted. <a href="/site/{{$.Site.Name}}/board/{{.Board.Code}}/thread/{{.ID}}">Click here</a> to view.
+            </div>
+            {{end}}
+            <div class="replies-container">
+                {{/* Load first 3 replies here */}}
+            </div>
+        </div>
+        {{end}}
+    {{else}}
+    <p style="text-align: center;">No threads on this board. Be the first to post!</p>
+    {{end}}
+
+    <div style="text-align: center; margin: 20px;">
+        {{if gt .Page 1}}
+        <a href="/site/{{.Site.Name}}/board/{{.Board.Code}}?page={{sub .Page 1}}">[Previous]</a>
+        {{end}}
+        Page {{.Page}}
+        {{if gt .ThreadsCount .PageSize}}
+        <a href="/site/{{.Site.Name}}/board/{{.Board.Code}}?page={{add .Page 1}}">[Next]</a>
+        {{end}}
+    </div>

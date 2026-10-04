@@ -1,0 +1,44 @@
+{{define "content"}}
+<div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold text-[var(--font-color)] mb-2">Search Results</h2>
+        <p class="text-[var(--subordinate-header)]">Query: "{{.Query}}"</p>
+    </div>
+
+    {{if .Results}}
+    <div class="section rounded-[5px] mb-8">
+        <div class="section-header">Results ({{.Results | len}} found)</div>
+        <div class="section-content">
+            <table class="thread-list w-full">
+                <thead>
+                    <tr>
+                        <th class="text-left">Thread</th>
+                        <th>Board</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Results}}
+                    <tr>
+                        <td>
+                            <a href="/site/{{.Site}}/board/{{.Board}}/thread/{{.ThreadID}}" class="text-blue-400 hover:underline">
+                                {{.Excerpt | truncate 80}}
+                            </a>
+                        </td>
+                        <td class="text-center">{{.Board}}</td>
+                        <td class="text-center">{{printf "%.2f" .Score}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{else}}
+    <div class="text-center text-gray-500 py-12">
+        No results found for "{{.Query}}"
+    </div>
+    {{end}}
+
+    <div class="text-center mt-8">
+        <a href="/search" class="text-[var(--link-color)] hover:text-[var(--link-hover)]">New Search</a>
+    </div>

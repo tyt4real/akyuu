@@ -1,0 +1,12 @@
+{{define "content"}}
+<div class="container mx-auto px-4 py-16 text-center">
+    <div class="max-w-md mx-auto">
+        <div class="bg-red-900/20 text-red-400 p-8 rounded-lg border border-red-800/30">
+            <div class="text-4xl mb-4">⚠️</div>
+            <h2 class="text-2xl font-bold mb-4">{{.Error}}</h2>
+            <p class="text-red-300 mb-6">{{.Message}}</p>
+            <a href="/" class="inline-block bg-[var(--link-color)] text-[var(--post-bg)] px-6 py-3 rounded hover:bg-[var(--link-hover)] transition-colors">
+                Return Home
+            </a>
+        </div>
+    </div>

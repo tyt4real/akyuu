@@ -373,6 +373,48 @@ func (s *Store) ListPosts(ctx context.Context, site, board, nativeID string, has
 			p.OriginalLink = origLink.String
 		}
 		out = append(out, &p)
+}
+	return out, nil
+}
+
+// GetThreadPosts returns all posts in a thread, ordered by timestamp.
+func (s *Store) GetThreadPosts(ctx context.Context, threadID int64) ([]*Post, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, thread_id, post_native_id, "timestamp", author_name, tripcode,
+		       capcode, poster_id, comment_parsed, sage, country, flag,
+		       original_board, website, original_thread_number, original_attachment_link
+		FROM posts WHERE thread_id = $1
+		ORDER BY "timestamp" ASC`, threadID)
+	if err != nil {
+		return nil, fmt.Errorf("store: get thread posts: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*Post
+	for rows.Next() {
+		var p Post
+		var commentParsed, origBoard, website, origThread, origLink sql.NullString
+		if err := rows.Scan(&p.ID, &p.ThreadID, &p.NativeID, &p.Timestamp, &p.AuthorName, &p.Tripcode,
+			&p.Capcode, &p.PosterID, &commentParsed, &p.PendingEmbedding,
+			&p.Country, &p.Flag, &origBoard, &website, &origThread, &origLink); err != nil {
+			return nil, fmt.Errorf("store: scan post: %w", err)
+		}
+		if commentParsed.Valid {
+			p.CommentParsed = commentParsed.String
+		}
+		if origBoard.Valid {
+			p.OriginalBoard = origBoard.String
+		}
+		if website.Valid {
+			p.Website = website.String
+		}
+		if origThread.Valid {
+			p.OriginalThread = origThread.String
+		}
+		if origLink.Valid {
+			p.OriginalLink = origLink.String
+		}
+		out = append(out, &p)
 	}
 	return out, rows.Err()
 }

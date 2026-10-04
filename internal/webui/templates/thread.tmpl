@@ -1,0 +1,73 @@
+{{define "content"}}
+<div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-6">
+        <div class="inline-flex gap-4 text-[var(--font-color)]">
+            <a class="text-[var(--link-color)] hover:text-[var(--link-hover)]" href="/site/{{.Site.Name}}/board/{{.Board.Code}}">[Return]</a>
+            <a class="text-[var(--link-color)] hover:text-[var(--link-hover)]" href="#bottom">[Bottom]</a>
+        </div>
+    </div>
+
+    {{if .Thread.IsLocked}}
+    <div class="bg-red-900/20 text-red-400 p-4 rounded-lg text-center mb-6 border border-red-800/30">
+        <div class="text-lg font-semibold mb-2">🔒 Thread Locked</div>
+        <div>This thread is locked. You cannot reply.</div>
+    </div>
+    {{else}}
+    <div class="flex justify-center mb-6">
+        <div class="w-full max-w-3xl post-form bg-[var(--post-bg)] border border-[var(--post-border)] rounded-md p-6 shadow-[0_0_10px_rgba(125,192,212,0.3)]">
+            <form action="/site/{{.Site.Name}}/board/{{.Board.Code}}/reply" method="POST" enctype="multipart/form-data" class="flex flex-col gap-4">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="thread_id" value="{{.Thread.ID}}">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Name</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="name" placeholder="Anonymous" maxlength="100">
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)] pt-2">Comment</label>
+                    <textarea class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" name="comment" required maxlength="4096"></textarea>
+                </div>
+                <div class="flex flex-col md:flex-row gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">File</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="file" name="file" accept="image/*">
+                </div>
+                <div class="flex gap-4 items-center">
+                    <label class="w-24"></label>
+                    <img src="/captcha?{{now.Unix}}" id="captcha-img" class="h-10">
+                    <a class="text-[var(--link-color)]" href="#" onclick="document.getElementById('captcha-img').src='/captcha?'+Date.now(); return false;">Reload</a>
+                </div>
+                <div class="flex gap-4">
+                    <label class="w-24 text-right font-semibold text-[var(--font-color)]">Captcha</label>
+                    <input class="flex-1 bg-[var(--reply-bg)] border border-[var(--post-border)] p-2 rounded" type="text" name="captcha" required maxlength="6">
+                </div>
+                <input class="bg-[var(--link-color)] text-[var(--post-bg)] px-4 py-2 rounded cursor-pointer hover:bg-[var(--link-hover)]" type="submit" value="Reply">
+            </form>
+        </div>
+    </div>
+    {{else}}
+    <div class="bg-red-900/10 text-[var(--error-color)] p-4 rounded text-center mb-6">
+        This thread is locked. You cannot reply.
+    </div>
+    {{end}}
+
+    <hr class="my-8 border-white/20">
+
+    <div class="thread w-full clear-both bg-[var(--post-bg)] border border-[var(--post-border)] rounded-md p-4 shadow">
+        {{template "post" dict "Post" .Thread "Board" .Board "IsOP" true}}
+        <div class="clear-both"></div>
+        <div class="text-sm text-[var(--subordinate-header)] mt-2">
+            {{len .Replies}} replies
+        </div>
+        <div class="replies-container flex flex-col gap-3 pl-4 border-l-2 border-[var(--post-border)] mt-3">
+            {{range .Replies}}
+            {{template "post" dict "Post" . "Board" .Board "IsOP" false}}
+            <div class="clear-both"></div>
+            {{end}}
+        </div>
+    </div>
+
+    <div id="bottom" class="text-center my-6">
+        <div class="inline-flex gap-4 text-[var(--font-color)]">
+            <a class="text-[var(--link-color)] hover:text-[var(--link-hover)]" href="/site/{{.Site.Name}}/board/{{.Board.Code}}">[Return]</a>
+            <a class="text-[var(--link-color)] hover:text-[var(--link-hover)]" href="#top">[Top]</a>
+        </div>
+    </div>

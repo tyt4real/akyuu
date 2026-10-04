@@ -1,0 +1,24 @@
+{{define "content"}}
+<div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold text-[var(--font-color)] mb-2">/overboard/ - All Recent Posts</h2>
+        <p class="text-[var(--subordinate-header)]">Recent posts across all boards</p>
+    </div>
+
+    {{if .Posts}}
+    <div class="replies-container flex flex-col gap-3">
+        {{range .Posts}}
+        <div class="thread bg-[var(--post-bg)] border border-[var(--post-border)] rounded-md p-4 shadow">
+            {{template "post" dict "Post" . "Board" .Board "IsOP" false}}
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="text-center text-gray-500 py-12">
+        No recent posts
+    </div>
+    {{end}}
+
+    <div class="text-center mt-8">
+        <a href="/overboard" class="text-[var(--link-color)] hover:text-[var(--link-hover)]">Refresh</a>
+    </div>

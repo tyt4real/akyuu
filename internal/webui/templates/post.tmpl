@@ -1,0 +1,60 @@
+{{define "post"}}
+<div class="post {{if .IsOP}}op{{else}}reply{{end}} clearfix" id="p{{.Post.ID}}">
+    {{if .Post.FilePath}}
+    <div class="post-file">
+        <div class="post-file-info">
+            {{.Post.FileName}} ({{.Post.FileSize | humanSize}}
+            {{if .Post.ImageWidth}} {{.Post.ImageWidth}}x{{.Post.ImageHeight}}{{end}})
+        </div>
+        {{if .Post.IsCensored}}
+        <div class="image-spoiler" data-post-id="{{.Post.ID}}">
+            <a href="{{.Post.FilePath}}" target="_blank">
+                <img src="{{.Post.ThumbPath}}" alt="{{.Post.FileName}}" class="post-thumb">
+            </a>
+            <div class="spoiler-overlay">CENSORED</div>
+        </div>
+        {{else}}
+        <a href="{{.Post.FilePath}}" target="_blank" onclick="expandImage(this, '{{.Post.FilePath}}'); return false;">
+            <img src="{{.Post.ThumbPath}}" alt="{{.Post.FileName}}" class="post-thumb">
+        </a>
+        {{end}}
+    </div>
+    {{end}}
+
+    <div class="post-header">
+        {{if .Post.Subject}}
+        <span class="post-subject">{{.Post.Subject}}</span>
+        {{end}}
+
+        <span class="post-name">{{.Post.AuthorName | default "Anonymous"}}</span>
+
+        {{if .Post.Tripcode}}
+        <span class="post-tripcode">{{.Post.Tripcode}}</span>
+        {{end}}
+
+        {{if .Post.Capcode}}
+        <span class="capcode-{{.Post.Capcode}}">## {{.Post.Capcode}}</span>
+        {{end}}
+
+        <span class="post-date">{{.Post.Timestamp | formatTime}}</span>
+        <span class="post-number">No.<a class="post-number" href="/site/{{.Board.Site.Name}}/board/{{.Board.Code}}/thread/{{.Thread.ID}}#p{{.Post.ID}}">{{.Post.ID}}</a></span>
+
+        {{if .IsOP}}
+        [<a href="/site/{{.Board.Site.Name}}/board/{{.Board.Code}}/thread/{{.Post.ThreadID}}" class="reply-link">Reply</a>]
+        {{end}}
+
+        {{if and .IsOP .Post.IsSticky}}
+        <span class="sticky-icon">📌 Sticky</span>
+        {{end}}
+        {{if and .IsOP .Post.IsLocked}}
+        <span class="locked-icon">🔒 Locked</span>
+        {{end}}
+    </div>
+
+    <div class="post-body">
+        <div class="post-text">{{.Post.CommentParsed | safeHTML}}</div>
+    </div>
+
+    <div style="font-size: 10px; margin-top: 5px;">
+        <a href="/site/{{.Board.Site.Name}}/board/{{.Board.Code}}/report/{{.Post.ID}}">[Report]</a>
+    </div>

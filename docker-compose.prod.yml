@@ -91,3 +91,21 @@ services:
     restart: unless-stopped
 
 volumes: {}
+
+# Web UI service
+  webui:
+    image: tyt4/akyuu:latest
+    command: ["webui", "-config", "/akyuu/config/config.yaml"]
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER:-akyuu}:${POSTGRES_PASSWORD}@172.17.0.1:5433/${POSTGRES_DB:-akyuu}?sslmode=disable
+      - LOG_LEVEL=info
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+    volumes:
+      - ./config/config.prod.yaml:/akyuu/config/config.yaml:ro
+      - ./config/sites:/akyuu/config/sites:ro
+      - ./storage:/akyuu/storage
+    ports:
+      - "127.0.0.1:8082:8082"
+    restart: unless-stopped
+    user: "10001:10001"

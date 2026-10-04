@@ -1,0 +1,78 @@
+{{define "content"}}
+<div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold bg-gradient-to-r from-red-400 via-yellow-300 via-green-400 via-blue-400 to-purple-500 bg-clip-text text-transparent mb-4">
+            Welcome to Akyuu
+        </h1>
+        <p class="text-xl text-gray-400">Image Board Archive - Preserving Imageboard Culture</p>
+    </div>
+
+    <div class="section rounded-[5px] mb-8">
+        <div class="section-header">Recent Threads</div>
+        <div class="section-content">
+            <table class="thread-list w-full">
+                <thead>
+                    <tr>
+                        <th class="text-left">Thread</th>
+                        <th>Board</th>
+                        <th>Replies</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range $site := .Sites}}
+                        {{range $board := $site.Boards}}
+                            {{if $threads := getThreadsForBoard $board.ID}}
+                                {{range $thread := $threads}}
+                                <tr>
+                                    <td>
+                                        <a href="/site/{{$site.Site.Name}}/board/{{$board.Code}}/thread/{{$thread.ID}}"
+                                           class="text-blue-400 hover:underline">
+                                            {{truncate $thread.Subject 80}}
+                                        </a>
+                                        <small class="text-gray-500 ml-2">(/{{$board.Code}}/)</small>
+                                    </td>
+                                    <td class="text-center">{{$board.Code}}</td>
+                                    <td class="text-center">{{$thread.ReplyCount}}</td>
+                                </tr>
+                            {{end}}
+                        {{end}}
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{range $site := .Sites}}
+    <div class="section rounded-[5px] mb-6">
+        <div class="section-header text-center text-[var(--font-color)] font-bold text-lg mb-4">
+            /{{$site.Site.Name}}/ Boards
+        </div>
+        <div class="flex flex-wrap gap-4 justify-center">
+            {{range $board := $site.Boards}}
+            <a href="/site/{{$site.Site.Name}}/board/{{$board.Code}}" 
+               class="px-6 py-4 rounded-[5px] border border-gray-700 text-sm font-medium text-gray-100 whitespace-nowrap
+                     transition-all duration-200 hover:ring-2 hover:ring-blue-500 hover:shadow-lg hover:shadow-blue-500/40">
+                <strong>/{{$board.Code}}/ - {{$board.Title}}</strong>
+            </a>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <div class="section rounded-[5px]">
+        <div class="section-header text-center text-[var(--font-color)] font-bold text-lg mb-4">
+            Community
+        </div>
+        <div class="flex flex-wrap gap-4 justify-center">
+            <a href="/overboard" class="px-6 py-4 rounded-[5px] border border-gray-700 text-sm font-medium text-gray-100 whitespace-nowrap transition-all duration-200 hover:ring-2 hover:ring-blue-500 hover:shadow-lg hover:shadow-blue-500/40">
+                <strong>/overboard/</strong> - All recent posts
+            </a>
+            <a href="/search" class="px-6 py-4 rounded-[5px] border border-gray-700 text-sm font-medium text-gray-100 whitespace-nowrap transition-all duration-200 hover:ring-2 hover:ring-green-500 hover:shadow-lg hover:shadow-green-500/40">
+                <strong>/search/</strong> - Search posts
+            </a>
+        </div>
+    </div>
+
+    <div class="stats-row mt-8">
+        <span style="font-size: 48px;">{{.TotalPosts}}</span>
+    </div>
